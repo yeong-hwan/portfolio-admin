@@ -1,0 +1,5 @@
+# OMC / Claude Code internal state
+.omc/
+
+# Sensitive portfolio data (holdings, valuations, snapshots)
+portfolio-admin/data/
