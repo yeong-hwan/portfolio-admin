@@ -11,15 +11,27 @@ function fmt(n: number | undefined | null): string {
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
 
-function getColor(rate: number): string {
+// 원금기준: ±40% 스케일
+function getTotalColor(rate: number): string {
   const r = rate * 100;
   if (r >= 40) return "#059669";
   if (r >= 20) return "#0d9488";
   if (r >= 10) return "#14b8a6";
-  if (r >= 0) return "#2dd4bf40";
-  if (r >= -10) return "#fb717140";
+  if (r >= -10) return "#374151";
   if (r >= -20) return "#ef4444";
   if (r >= -40) return "#dc2626";
+  return "#b91c1c";
+}
+
+// 오늘기준: ±5% 스케일
+function getDailyColor(rate: number): string {
+  const r = rate * 100;
+  if (r >= 5) return "#059669";
+  if (r >= 2) return "#0d9488";
+  if (r >= 0.5) return "#14b8a6";
+  if (r >= -0.5) return "#374151";
+  if (r >= -2) return "#ef4444";
+  if (r >= -5) return "#dc2626";
   return "#b91c1c";
 }
 
@@ -130,9 +142,12 @@ function layoutStrip(
   }
 }
 
+type HeatmapMode = "today" | "total";
+
 export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { positions: Position[]; cashKrw?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 450 });
+  const [mode, setMode] = useState<HeatmapMode>("today");
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -180,12 +195,43 @@ export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { posit
     return squarify(items, 0, 0, dims.w, dims.h);
   }, [positions, cashKrw, dims]);
 
+  const todayLegend: [string, string][] = [
+    ["#b91c1c", "-5%"], ["#dc2626", "-2%"], ["#ef4444", "-0.5%"],
+    ["#374151", "0%"],
+    ["#14b8a6", "+0.5%"], ["#0d9488", "+2%"], ["#059669", "+5%"],
+  ];
+  const totalLegend: [string, string][] = [
+    ["#b91c1c", "-40%"], ["#dc2626", "-20%"], ["#ef4444", "-10%"],
+    ["#374151", "0%"],
+    ["#14b8a6", "+10%"], ["#0d9488", "+20%"], ["#059669", "+40%"],
+  ];
+  const legend = mode === "today" ? todayLegend : totalLegend;
+
   return (
     <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
-      <h2 className="text-lg font-semibold text-white mb-4">수익률 히트맵</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-white">수익률 히트맵</h2>
+        <div className="flex gap-1">
+          {(["today", "total"] as HeatmapMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                mode === m
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700"
+              }`}
+            >
+              {m === "today" ? "오늘 기준" : "원금 기준"}
+            </button>
+          ))}
+        </div>
+      </div>
       <div ref={containerRef} className="relative" style={{ height: dims.h }}>
         {rects.map((r) => {
           const p = r.position;
+          const rate = mode === "today" ? p.daily_profit_rate : p.profit_rate;
+          const color = mode === "today" ? getDailyColor(rate) : getTotalColor(rate);
           const showName = r.w > 55 && r.h > 40;
           const showPct = r.w > 40 && r.h > 28;
           const fontSize = r.w > 100 && r.h > 60 ? "text-sm" : "text-[10px]";
@@ -200,7 +246,7 @@ export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { posit
                 top: r.y + 1,
                 width: r.w - 2,
                 height: r.h - 2,
-                backgroundColor: getColor(p.profit_rate),
+                backgroundColor: color,
               }}
             >
               {showName && (
@@ -210,7 +256,7 @@ export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { posit
               )}
               {showPct && (
                 <span className={`font-mono text-white/90 ${fontSize} leading-tight`}>
-                  {pct(p.profit_rate)}
+                  {pct(rate)}
                 </span>
               )}
               {/* Tooltip */}
@@ -222,20 +268,10 @@ export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { posit
                   <div className="text-gray-400 mt-1">
                     평가금: ₩{fmt(p.market_value)}
                   </div>
-                  <div
-                    className={
-                      p.unrealized_pnl >= 0 ? "text-emerald-400" : "text-rose-400"
-                    }
-                  >
+                  <div className={p.unrealized_pnl >= 0 ? "text-emerald-400" : "text-rose-400"}>
                     손익: ₩{fmt(p.unrealized_pnl)} ({pct(p.profit_rate)})
                   </div>
-                  <div
-                    className={
-                      p.daily_profit_loss >= 0
-                        ? "text-emerald-400"
-                        : "text-rose-400"
-                    }
-                  >
+                  <div className={p.daily_profit_loss >= 0 ? "text-emerald-400" : "text-rose-400"}>
                     일간: ₩{fmt(p.daily_profit_loss)} ({pct(p.daily_profit_rate)})
                   </div>
                 </div>
@@ -246,20 +282,9 @@ export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { posit
       </div>
       {/* Legend */}
       <div className="flex items-center justify-center gap-2 mt-4 text-[10px] text-gray-400">
-        {[
-          ["#b91c1c", "-40%"],
-          ["#dc2626", "-20%"],
-          ["#ef4444", "-10%"],
-          ["#6b7280", "0%"],
-          ["#14b8a6", "+10%"],
-          ["#0d9488", "+20%"],
-          ["#059669", "+40%"],
-        ].map(([color, label]) => (
+        {legend.map(([color, label]) => (
           <div key={label} className="flex items-center gap-1">
-            <span
-              className="w-4 h-3 rounded-sm inline-block"
-              style={{ backgroundColor: color }}
-            />
+            <span className="w-4 h-3 rounded-sm inline-block" style={{ backgroundColor: color }} />
             <span>{label}</span>
           </div>
         ))}

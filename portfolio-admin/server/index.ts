@@ -185,6 +185,216 @@ app.get("/api/checkpoints", async (_req, res) => {
   }
 });
 
+// API: Fill gaps between existing checkpoints with synthetic entries
+app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
+  try {
+    const checkpoints = await loadCheckpoints();
+    if (checkpoints.length < 2) {
+      return res.json({ filled: 0, skipped: 0 });
+    }
+
+    // Sort by marketDate
+    const sorted = [...checkpoints].sort((a, b) => {
+      const da = a.marketDate || a.timestamp.split("T")[0];
+      const db = b.marketDate || b.timestamp.split("T")[0];
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+    const existingDates = new Set(
+      sorted.map((c) => c.marketDate || c.timestamp.split("T")[0])
+    );
+
+    // Generate all weekdays between first and last checkpoint
+    const firstDate = sorted[0].marketDate || sorted[0].timestamp.split("T")[0];
+    const lastDate = sorted[sorted.length - 1].marketDate || sorted[sorted.length - 1].timestamp.split("T")[0];
+
+    const allWeekdays: string[] = [];
+    const cursor = new Date(firstDate + "T00:00:00Z");
+    const endDate = new Date(lastDate + "T00:00:00Z");
+    while (cursor <= endDate) {
+      const dow = cursor.getUTCDay();
+      if (dow !== 0 && dow !== 6) {
+        allWeekdays.push(cursor.toISOString().split("T")[0]);
+      }
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    const missingDates = allWeekdays.filter((d) => !existingDates.has(d));
+    if (missingDates.length === 0) {
+      return res.json({ filled: 0, skipped: 0 });
+    }
+
+    // Fetch exchange rates in bulk from Frankfurter API
+    const rateMap: Record<string, number> = {};
+    try {
+      const fxUrl = `https://api.frankfurter.app/${firstDate}..${lastDate}?from=USD&to=KRW`;
+      const fxResp = await fetch(fxUrl);
+      if (fxResp.ok) {
+        const fxData = await fxResp.json();
+        if (fxData.rates) {
+          for (const [date, rates] of Object.entries(fxData.rates as Record<string, { KRW: number }>)) {
+            rateMap[date] = rates.KRW;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[fill-gaps] Failed to fetch exchange rates:", e);
+    }
+
+    // Helper: get nearest prior exchange rate
+    function getUsdKrw(date: string): number {
+      const sorted = Object.keys(rateMap).sort();
+      const prior = sorted.filter((d) => d <= date).pop();
+      return prior ? rateMap[prior] : 1380;
+    }
+
+    // Collect all symbols from existing checkpoints
+    const allSymbols = new Set<string>();
+    for (const cp of sorted) {
+      for (const pos of cp.positions || []) {
+        if (pos.symbol) allSymbols.add(pos.symbol);
+      }
+    }
+
+    // Fetch Yahoo Finance price data per symbol
+    const priceMap: Record<string, Record<string, number>> = {};
+    const startUnix = Math.floor(new Date(firstDate + "T00:00:00Z").getTime() / 1000) - 86400;
+    const endUnix = Math.floor(new Date(lastDate + "T00:00:00Z").getTime() / 1000) + 86400;
+
+    for (const symbol of allSymbols) {
+      try {
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&period1=${startUnix}&period2=${endUnix}`;
+        const yahooResp = await fetch(yahooUrl);
+        if (!yahooResp.ok) continue;
+        const yahooData = await yahooResp.json();
+        const result = yahooData?.chart?.result?.[0];
+        if (!result) continue;
+        const timestamps: number[] = result.timestamp || [];
+        const closes: number[] = result.indicators?.quote?.[0]?.close || [];
+        priceMap[symbol] = {};
+        for (let i = 0; i < timestamps.length; i++) {
+          if (closes[i] == null) continue;
+          const dateStr = new Date(timestamps[i] * 1000).toISOString().split("T")[0];
+          priceMap[symbol][dateStr] = closes[i];
+        }
+      } catch (e) {
+        console.error(`[fill-gaps] Failed to fetch Yahoo Finance for ${symbol}:`, e);
+        continue;
+      }
+      // Rate limit prevention
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    // Process each missing date
+    let filled = 0;
+    let skipped = 0;
+    const syntheticCheckpoints: any[] = [];
+
+    for (let idx = 0; idx < missingDates.length; idx++) {
+      const date = missingDates[idx];
+      try {
+        // Find most recent prior checkpoint
+        const prior = sorted.filter((c) => {
+          const d = c.marketDate || c.timestamp.split("T")[0];
+          return d < date;
+        }).pop();
+
+        if (!prior) {
+          skipped++;
+          continue;
+        }
+
+        const usdKrw = getUsdKrw(date);
+        const calculatedPositions: any[] = [];
+        let hasAllPrices = true;
+
+        for (const pos of prior.positions || []) {
+          const symbol = pos.symbol;
+          if (!symbol) continue;
+          const closePrice = priceMap[symbol]?.[date];
+          if (closePrice == null) {
+            hasAllPrices = false;
+            break;
+          }
+          const market_value_usd = pos.quantity * closePrice;
+          const market_value = market_value_usd * usdKrw;
+          const unrealized_pnl_usd = (closePrice - (pos.average_price_usd || 0)) * pos.quantity;
+          const unrealized_pnl = unrealized_pnl_usd * usdKrw;
+          const profit_rate_usd =
+            pos.average_price_usd > 0
+              ? (closePrice - pos.average_price_usd) / pos.average_price_usd
+              : 0;
+
+          calculatedPositions.push({
+            ...pos,
+            current_price_usd: closePrice,
+            current_price: closePrice * usdKrw,
+            market_value_usd,
+            market_value,
+            unrealized_pnl_usd,
+            unrealized_pnl,
+            profit_rate_usd,
+            profit_rate: pos.average_price > 0
+              ? unrealized_pnl / (pos.average_price * pos.quantity)
+              : 0,
+            daily_profit_loss: 0,
+            daily_profit_rate: 0,
+            daily_profit_loss_usd: 0,
+            daily_profit_rate_usd: 0,
+          });
+        }
+
+        if (!hasAllPrices) {
+          skipped++;
+          continue;
+        }
+
+        const totalMarketValueKrw = calculatedPositions.reduce((sum, p) => sum + p.market_value, 0);
+        const cashKrw = prior.summary.orderable_amount_krw;
+        const totalAsset = totalMarketValueKrw + cashKrw;
+        const totalPrincipal = calculatedPositions.reduce(
+          (sum, p) => sum + p.quantity * (p.average_price_usd || 0) * usdKrw,
+          0
+        );
+
+        const syntheticCheckpoint = {
+          id: Date.now() + idx,
+          marketDate: date,
+          timestamp: `${date}T21:00:00.000Z`,
+          synthetic: true,
+          summary: {
+            ...prior.summary,
+            total_asset_amount: totalAsset,
+            evaluated_profit_amount: totalAsset - totalPrincipal - cashKrw,
+            profit_rate:
+              totalPrincipal > 0 ? (totalAsset - totalPrincipal - cashKrw) / totalPrincipal : 0,
+            orderable_amount_krw: cashKrw,
+          },
+          positions: calculatedPositions,
+        };
+
+        syntheticCheckpoints.push(syntheticCheckpoint);
+        filled++;
+      } catch (e) {
+        console.error(`[fill-gaps] Error processing date ${date}:`, e);
+        skipped++;
+      }
+    }
+
+    // Save combined checkpoints
+    const combined = [...sorted, ...syntheticCheckpoints].sort((a, b) => {
+      const da = a.marketDate || a.timestamp.split("T")[0];
+      const db = b.marketDate || b.timestamp.split("T")[0];
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+    await saveCheckpoints(combined);
+
+    res.json({ filled, skipped });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // API: Force save today's checkpoint (for testing / manual trigger)
 app.post("/api/checkpoints/today", async (_req, res) => {
   try {

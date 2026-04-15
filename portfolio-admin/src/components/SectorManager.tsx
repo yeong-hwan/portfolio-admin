@@ -95,11 +95,7 @@ export function SectorManager({
 
   return (
     <>
-      <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-white">섹터 관리</h2>
-        </div>
-
+      <div>
         {/* Add new sector */}
         <div className="flex gap-2 mb-4">
           <input

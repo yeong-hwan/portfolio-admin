@@ -53,53 +53,51 @@ export const AllocationChart = memo(function AllocationChart({ positions, cashKr
   return (
     <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5 h-full">
       <h2 className="text-lg font-semibold text-white mb-2">포트폴리오 비중</h2>
-      <div className="flex flex-col items-center">
-        <div className="w-full" style={{ height: 280 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={120}
-                paddingAngle={1}
-                dataKey="value"
-                stroke="none"
-              >
-                {data.map((d) => (
-                  <Cell key={d.name} fill={d.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1f2937",
-                  border: "1px solid #374151",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                }}
-                formatter={(value, name) => [
-                  `₩${fmt(Number(value))}`,
-                  String(name),
-                ]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-xs w-full mt-1">
-          {data.map((d) => (
-            <div key={d.name} className="flex items-center gap-1.5 min-w-0">
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: d.color }}
-              />
-              <span className="text-gray-300 truncate">{d.name}</span>
-              <span className="text-gray-500 ml-auto font-mono">
-                {d.pct.toFixed(1)}%
-              </span>
-            </div>
-          ))}
-        </div>
+      <div style={{ height: 240 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={110}
+              paddingAngle={1}
+              dataKey="value"
+              stroke="none"
+            >
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#1f2937",
+                border: "1px solid #374151",
+                borderRadius: "12px",
+                fontSize: "13px",
+              }}
+              formatter={(value, name) => [
+                `₩${fmt(Number(value))}`,
+                String(name),
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mt-3">
+        {data.map((d) => (
+          <div key={d.name} className="flex items-center gap-2 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: d.color }}
+            />
+            <span className="text-gray-200 truncate">{d.name}</span>
+            <span className="text-gray-400 ml-auto font-mono flex-shrink-0">
+              {d.pct.toFixed(1)}%
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

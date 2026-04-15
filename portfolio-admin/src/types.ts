@@ -54,6 +54,8 @@ export interface Snapshot {
 export interface Checkpoint {
   id: number;
   timestamp: string;
+  marketDate?: string;
+  synthetic?: boolean;
   summary: AccountSummary;
   positions: Position[];
 }

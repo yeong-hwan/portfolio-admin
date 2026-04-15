@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { usePortfolio } from "./hooks/usePortfolio";
 import { SummaryCards } from "./components/SummaryCards";
 import { PositionsTable } from "./components/PositionsTable";
@@ -27,6 +28,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
 }
 
 export default function App() {
+  const [sectorMode, setSectorMode] = useState<"view" | "manage">("view");
   const {
     snapshot,
     checkpoints,
@@ -107,24 +109,49 @@ export default function App() {
           )}
           <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
 
-          <TrendChart checkpoints={checkpoints} />
+          <TrendChart checkpoints={checkpoints} onRefresh={refresh} />
 
           {sectorConfig && (
-            <>
-              <SectorView
-                positions={snapshot.positions}
-                sectorConfig={sectorConfig}
-                cashKrw={cashKrw}
-              />
-              <SectorManager
-                positions={snapshot.positions}
-                sectorConfig={sectorConfig}
-                onAddSector={addSector}
-                onDeleteSector={deleteSector}
-                onAssignSymbol={assignSymbol}
-                onRemoveSymbol={removeSymbol}
-              />
-            </>
+            <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-white">
+                  {sectorMode === "view" ? "섹터별 현황" : "섹터 관리"}
+                </h2>
+                <div className="flex gap-1">
+                  {(["view", "manage"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSectorMode(m)}
+                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                        sectorMode === m
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700"
+                      }`}
+                    >
+                      {m === "view" ? "현황" : "관리"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                {sectorMode === "view" ? (
+                  <SectorView
+                    positions={snapshot.positions}
+                    sectorConfig={sectorConfig}
+                    cashKrw={cashKrw}
+                  />
+                ) : (
+                  <SectorManager
+                    positions={snapshot.positions}
+                    sectorConfig={sectorConfig}
+                    onAddSector={addSector}
+                    onDeleteSector={deleteSector}
+                    onAssignSymbol={assignSymbol}
+                    onRemoveSymbol={removeSymbol}
+                  />
+                )}
+              </div>
+            </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

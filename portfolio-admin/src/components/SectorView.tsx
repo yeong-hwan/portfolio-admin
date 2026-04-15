@@ -85,9 +85,7 @@ export function SectorView({ positions, sectorConfig, cashKrw }: Props) {
     positions.reduce((s, p) => s + p.market_value, 0) + cashKrw;
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
-      <h2 className="text-lg font-semibold text-white mb-4">섹터별 현황</h2>
-
+    <div>
       {/* Sector bar */}
       <div className="flex rounded-lg overflow-hidden h-8 mb-4">
         {sectors
