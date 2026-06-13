@@ -173,15 +173,13 @@ export function PerformanceMetrics() {
               color={p.totalReturn >= 0 ? "green" : "red"}
             />
             <StatCard
-              label="연환산 수익률"
+              label="연환산 수익률 (CAGR)"
               value={pct(p.annualizedReturn)}
-              sub="CAGR"
               color={p.annualizedReturn >= 0 ? "green" : "red"}
             />
             <StatCard
-              label="샤프 비율"
+              label="샤프 비율 (RF 4.5%)"
               value={p.sharpe.toFixed(2)}
-              sub="무위험 4.5%"
               color={sharpeColor(p.sharpe)}
             />
             <StatCard
@@ -191,9 +189,8 @@ export function PerformanceMetrics() {
               color="red"
             />
             <StatCard
-              label="변동성"
+              label="변동성 (연환산 σ)"
               value={pct(p.volatility)}
-              sub="연환산 σ"
               color="neutral"
             />
           </div>
@@ -202,15 +199,13 @@ export function PerformanceMetrics() {
           <div className="border-t border-white/[0.08] pt-4">
             <div className="grid grid-cols-3 gap-3">
               <StatCard
-                label="알파"
+                label="알파 (Jensen's α)"
                 value={pct(data.alpha)}
-                sub="Jensen's α"
                 color={data.alpha >= 0 ? "green" : "red"}
               />
               <StatCard
                 label="베타"
                 value={data.beta.toFixed(2)}
-                sub={data.beta > 1 ? "시장보다 공격적" : "시장보다 방어적"}
                 color={data.beta > 1.5 ? "red" : data.beta < 0.8 ? "green" : "neutral"}
               />
               <StatCard
