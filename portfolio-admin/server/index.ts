@@ -1,15 +1,13 @@
 import express from "express";
 import cors from "cors";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getAccounts, getSnapshot, getExchangeRate, clearTokenCache } from "./toss-api/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const execFileAsync = promisify(execFile);
 const app = express();
 const PORT = 3001;
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -19,13 +17,6 @@ const LAST_SNAPSHOT_FILE = path.join(DATA_DIR, "last-snapshot.json");
 
 app.use(cors());
 app.use(express.json());
-
-async function runTossctl(args: string[]): Promise<any> {
-  const { stdout } = await execFileAsync("tossctl", [...args, "--output", "json"], {
-    timeout: 30000,
-  });
-  return JSON.parse(stdout);
-}
 
 async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -45,19 +36,13 @@ async function saveCheckpoints(checkpoints: any[]) {
   await fs.writeFile(CHECKPOINTS_FILE, JSON.stringify(checkpoints, null, 2));
 }
 
-// Check if a checkpoint already exists for today's market close date
 function getMarketCloseDate(): string {
-  // US market close = 16:00 ET → KST 05:00~06:00 next day
-  // The "trading date" is the US date when market closed
   const now = new Date();
-  // US Eastern time offset: UTC-5 (EST) or UTC-4 (EDT)
   const etOffset = isDST(now) ? -4 : -5;
   const etHour = (now.getUTCHours() + etOffset + 24) % 24;
   const etDate = new Date(now.getTime() + etOffset * 3600000);
-  // If before 16:00 ET, the last close was previous trading day
   const dateStr = etDate.toISOString().split("T")[0];
   if (etHour < 16) {
-    // Use previous day
     const prev = new Date(etDate.getTime() - 86400000);
     return prev.toISOString().split("T")[0];
   }
@@ -65,7 +50,6 @@ function getMarketCloseDate(): string {
 }
 
 function isDST(date: Date): boolean {
-  // US DST: second Sunday of March to first Sunday of November
   const year = date.getUTCFullYear();
   const marchSecondSunday = new Date(Date.UTC(year, 2, 8));
   marchSecondSunday.setUTCDate(8 + ((7 - marchSecondSunday.getUTCDay()) % 7));
@@ -81,10 +65,7 @@ async function saveDailyCheckpoint() {
     const alreadySaved = checkpoints.some((c) => c.marketDate === marketDate);
     if (alreadySaved) return;
 
-    const [summary, positions] = await Promise.all([
-      runTossctl(["account", "summary"]),
-      runTossctl(["portfolio", "positions"]),
-    ]);
+    const { summary, positions } = await getSnapshot();
     const checkpoint = {
       id: Date.now(),
       marketDate,
@@ -100,29 +81,20 @@ async function saveDailyCheckpoint() {
   }
 }
 
-// Auto-save: check every 10 minutes, save at KST 05:10 (right after US market close)
 setInterval(async () => {
   const now = new Date();
   const kstHour = (now.getUTCHours() + 9) % 24;
   const kstMin = now.getUTCMinutes();
-  // Window: KST 05:00 ~ 05:20 (captures market close in both EST and EDT)
   if (kstHour === 5 && kstMin >= 0 && kstMin < 20) {
     await saveDailyCheckpoint();
   }
 }, 10 * 60 * 1000);
 
-// API: Exchange rate (USD/KRW) from public API
+// API: Exchange rate (USD/KRW) from Toss Securities official API
 app.get("/api/exchange-rate", async (_req, res) => {
   try {
-    const response = await fetch(
-      "https://open.er-api.com/v6/latest/USD"
-    );
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    res.json({
-      rate: data.rates.KRW,
-      timestamp: data.time_last_update_utc,
-    });
+    const { rate, timestamp } = await getExchangeRate();
+    res.json({ rate, timestamp });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -142,17 +114,14 @@ async function saveLastSnapshot(snapshot: any) {
   await fs.writeFile(LAST_SNAPSHOT_FILE, JSON.stringify(snapshot, null, 2));
 }
 
-function isSessionExpired(message: string): boolean {
-  return /session is no longer valid|auth login|403/i.test(message);
+function isAuthError(message: string): boolean {
+  return /invalid_client|TOSS_CLIENT|oauth token|401|403/i.test(message);
 }
 
 // API: Full snapshot (summary + positions) with cache fallback
 app.get("/api/snapshot", async (_req, res) => {
   try {
-    const [summary, positions] = await Promise.all([
-      runTossctl(["account", "summary"]),
-      runTossctl(["portfolio", "positions"]),
-    ]);
+    const { summary, positions } = await getSnapshot();
     const snapshot = {
       summary,
       positions,
@@ -166,11 +135,11 @@ app.get("/api/snapshot", async (_req, res) => {
       res.json({
         ...cached,
         stale: true,
-        sessionExpired: isSessionExpired(e.message),
+        sessionExpired: isAuthError(e.message),
         error: e.message,
       });
     } else {
-      res.status(500).json({ error: e.message, sessionExpired: isSessionExpired(e.message) });
+      res.status(500).json({ error: e.message, sessionExpired: isAuthError(e.message) });
     }
   }
 });
@@ -193,7 +162,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       return res.json({ filled: 0, skipped: 0 });
     }
 
-    // Sort by marketDate
     const sorted = [...checkpoints].sort((a, b) => {
       const da = a.marketDate || a.timestamp.split("T")[0];
       const db = b.marketDate || b.timestamp.split("T")[0];
@@ -204,7 +172,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       sorted.map((c) => c.marketDate || c.timestamp.split("T")[0])
     );
 
-    // Generate all weekdays between first and last checkpoint
     const firstDate = sorted[0].marketDate || sorted[0].timestamp.split("T")[0];
     const lastDate = sorted[sorted.length - 1].marketDate || sorted[sorted.length - 1].timestamp.split("T")[0];
 
@@ -224,7 +191,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       return res.json({ filled: 0, skipped: 0 });
     }
 
-    // Fetch exchange rates in bulk from Frankfurter API
     const rateMap: Record<string, number> = {};
     try {
       const fxUrl = `https://api.frankfurter.app/${firstDate}..${lastDate}?from=USD&to=KRW`;
@@ -241,14 +207,12 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       console.error("[fill-gaps] Failed to fetch exchange rates:", e);
     }
 
-    // Helper: get nearest prior exchange rate
     function getUsdKrw(date: string): number {
-      const sorted = Object.keys(rateMap).sort();
-      const prior = sorted.filter((d) => d <= date).pop();
+      const sortedDates = Object.keys(rateMap).sort();
+      const prior = sortedDates.filter((d) => d <= date).pop();
       return prior ? rateMap[prior] : 1380;
     }
 
-    // Collect all symbols from existing checkpoints
     const allSymbols = new Set<string>();
     for (const cp of sorted) {
       for (const pos of cp.positions || []) {
@@ -256,7 +220,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       }
     }
 
-    // Fetch Yahoo Finance price data per symbol
     const priceMap: Record<string, Record<string, number>> = {};
     const startUnix = Math.floor(new Date(firstDate + "T00:00:00Z").getTime() / 1000) - 86400;
     const endUnix = Math.floor(new Date(lastDate + "T00:00:00Z").getTime() / 1000) + 86400;
@@ -281,11 +244,9 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
         console.error(`[fill-gaps] Failed to fetch Yahoo Finance for ${symbol}:`, e);
         continue;
       }
-      // Rate limit prevention
       await new Promise((r) => setTimeout(r, 100));
     }
 
-    // Process each missing date
     let filled = 0;
     let skipped = 0;
     const syntheticCheckpoints: any[] = [];
@@ -293,7 +254,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
     for (let idx = 0; idx < missingDates.length; idx++) {
       const date = missingDates[idx];
       try {
-        // Find most recent prior checkpoint
         const prior = sorted.filter((c) => {
           const d = c.marketDate || c.timestamp.split("T")[0];
           return d < date;
@@ -381,7 +341,6 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
       }
     }
 
-    // Save combined checkpoints
     const combined = [...sorted, ...syntheticCheckpoints].sort((a, b) => {
       const da = a.marketDate || a.timestamp.split("T")[0];
       const db = b.marketDate || b.timestamp.split("T")[0];
@@ -395,17 +354,13 @@ app.post("/api/checkpoints/fill-gaps", async (_req, res) => {
   }
 });
 
-// API: Force save today's checkpoint (for testing / manual trigger)
+// API: Force save today's checkpoint
 app.post("/api/checkpoints/today", async (_req, res) => {
   try {
     const marketDate = getMarketCloseDate();
     const checkpoints = await loadCheckpoints();
-    // Remove existing for same date (overwrite)
     const filtered = checkpoints.filter((c) => c.marketDate !== marketDate);
-    const [summary, positions] = await Promise.all([
-      runTossctl(["account", "summary"]),
-      runTossctl(["portfolio", "positions"]),
-    ]);
+    const { summary, positions } = await getSnapshot();
     const checkpoint = {
       id: Date.now(),
       marketDate,
@@ -436,7 +391,6 @@ async function saveSectors(data: any) {
   await fs.writeFile(SECTORS_FILE, JSON.stringify(data, null, 2));
 }
 
-// Get sectors
 app.get("/api/sectors", async (_req, res) => {
   try {
     const data = await loadSectors();
@@ -446,7 +400,6 @@ app.get("/api/sectors", async (_req, res) => {
   }
 });
 
-// Update entire sectors config
 app.put("/api/sectors", async (req, res) => {
   try {
     await saveSectors(req.body);
@@ -456,7 +409,6 @@ app.put("/api/sectors", async (req, res) => {
   }
 });
 
-// Add a new sector
 app.post("/api/sectors", async (req, res) => {
   try {
     const { name, symbols = [] } = req.body;
@@ -473,7 +425,6 @@ app.post("/api/sectors", async (req, res) => {
   }
 });
 
-// Delete a sector
 app.delete("/api/sectors/:name", async (req, res) => {
   try {
     const data = await loadSectors();
@@ -485,13 +436,11 @@ app.delete("/api/sectors/:name", async (req, res) => {
   }
 });
 
-// Assign symbol to sector
 app.post("/api/sectors/:name/symbols", async (req, res) => {
   try {
     const { symbol } = req.body;
     if (!symbol) return res.status(400).json({ error: "symbol required" });
     const data = await loadSectors();
-    // Remove from any existing sector
     for (const s of data.sectors) {
       s.symbols = s.symbols.filter((sym: string) => sym !== symbol);
     }
@@ -505,7 +454,6 @@ app.post("/api/sectors/:name/symbols", async (req, res) => {
   }
 });
 
-// Remove symbol from sector
 app.delete("/api/sectors/:name/symbols/:symbol", async (req, res) => {
   try {
     const data = await loadSectors();
@@ -520,67 +468,24 @@ app.delete("/api/sectors/:name/symbols/:symbol", async (req, res) => {
   }
 });
 
-// API: Trigger tossctl auth login (opens browser on server machine)
-// If running on a machine that can ssh to atlas, also sync session.
-app.post("/api/auth/login", async (_req, res) => {
-  try {
-    const { spawn } = await import("child_process");
-    const child = spawn("tossctl", ["auth", "login"], {
-      detached: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let output = "";
-    let errorOutput = "";
-    child.stdout?.on("data", (d) => (output += d.toString()));
-    child.stderr?.on("data", (d) => (errorOutput += d.toString()));
-
-    const exitCode = await new Promise<number>((resolve) => {
-      const timer = setTimeout(() => {
-        child.kill();
-        resolve(-1);
-      }, 180000); // 3 min timeout
-      child.on("exit", (code) => {
-        clearTimeout(timer);
-        resolve(code ?? 0);
-      });
-    });
-
-    if (exitCode === 0) {
-      // Best-effort: sync session to atlas if we're not atlas itself
-      const hostname = (await execFileAsync("hostname", [])).stdout.trim();
-      const isAtlas = /atlas|Mac-mini/i.test(hostname);
-      if (!isAtlas) {
-        try {
-          await execFileAsync("scp", [
-            `${process.env.HOME}/Library/Application Support/tossctl/session.json`,
-            "atlas:~/Library/Application Support/tossctl/",
-          ], { timeout: 10000 });
-          await execFileAsync("ssh", [
-            "atlas",
-            "export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH && ~/portfolio-admin/scripts/start-server.sh stop && ~/portfolio-admin/scripts/start-server.sh start",
-          ], { timeout: 15000 });
-        } catch {
-          // Sync failed but local login succeeded - don't fail the request
-        }
-      }
-      res.json({ ok: true, output, syncedToAtlas: !isAtlas });
-    } else if (exitCode === -1) {
-      res.status(408).json({ error: "로그인 타임아웃 (3분)" });
-    } else {
-      res.status(500).json({ error: errorOutput || output || "로그인 실패" });
-    }
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// API: Check auth status
+// API: Check auth status by verifying credentials can fetch accounts
 app.get("/api/auth/status", async (_req, res) => {
   try {
-    await runTossctl(["account", "list"]);
+    await getAccounts();
     res.json({ ok: true });
   } catch (e: any) {
     res.json({ ok: false, error: e.message });
+  }
+});
+
+// API: Validate credentials and reset token cache
+app.post("/api/auth/login", async (_req, res) => {
+  try {
+    clearTokenCache();
+    await getAccounts();
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(401).json({ error: e.message });
   }
 });
 
@@ -593,6 +498,5 @@ app.get("/{*splat}", (_req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Portfolio admin API running on http://localhost:${PORT}`);
-  // Save checkpoint on startup if within market close window or for initial data
   saveDailyCheckpoint();
 });

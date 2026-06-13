@@ -25,3 +25,8 @@ dist-ssr
 
 # Sensitive portfolio data (holdings, valuations, daily snapshots)
 data/
+
+# Environment variables (API keys)
+.env
+.env.local
+.env.*.local
