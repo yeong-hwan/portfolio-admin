@@ -131,8 +131,8 @@ export default function App() {
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <div className="flex flex-col gap-6 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div className="flex flex-col gap-6">
               <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
               <PortfolioCandles />
             </div>

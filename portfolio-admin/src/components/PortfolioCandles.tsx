@@ -111,8 +111,8 @@ export function PortfolioCandles() {
   }, [candles, range]);
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex-1 flex flex-col">
-      <div className="flex items-center justify-between mb-4 shrink-0">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">포트폴리오 캔들</h2>
           {candles && (
@@ -137,7 +137,7 @@ export function PortfolioCandles() {
       </div>
 
       {loading && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-gray-500 text-sm">
+        <div className="flex flex-col items-center justify-center h-[420px] gap-2 text-gray-500 text-sm">
           <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
@@ -145,11 +145,11 @@ export function PortfolioCandles() {
         </div>
       )}
       {!loading && error && (
-        <div className="flex-1 flex items-center justify-center text-rose-400 text-sm">{error}</div>
+        <div className="flex items-center justify-center h-[420px] text-rose-400 text-sm">{error}</div>
       )}
       {!loading && !error && (
-        <div className="flex-1 min-h-0 relative flex flex-col">
-          <div ref={containerRef} className="flex-1 min-h-0" />
+        <div className="relative">
+          <div ref={containerRef} className="h-[420px]" />
           {tooltip && (
             <div className="absolute top-2 left-2 bg-gray-900/90 backdrop-blur border border-gray-700/60 rounded-xl px-3 py-2.5 text-xs pointer-events-none">
               <p className="text-gray-400 mb-1.5 font-medium">{tooltip.date}</p>
