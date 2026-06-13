@@ -68,15 +68,27 @@ export async function tossGet<T>(
     headers['X-Tossinvest-Account'] = String(opts.accountSeq);
   }
 
-  const res = await fetch(url.toString(), { headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: { code?: string; message?: string } };
-    const msg = err.error?.message ?? err.error?.code ?? String(res.status);
-    throw new Error(`Toss API ${path} failed (${res.status}): ${msg}`);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url.toString(), { headers });
+
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('Retry-After') ?? '5', 10);
+      const wait = (isNaN(retryAfter) ? 5 : retryAfter) * 1000;
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: { code?: string; message?: string } };
+      const msg = err.error?.message ?? err.error?.code ?? String(res.status);
+      throw new Error(`Toss API ${path} failed (${res.status}): ${msg}`);
+    }
+
+    const data = await res.json() as ApiResponse<T>;
+    return data.result;
   }
 
-  const data = await res.json() as ApiResponse<T>;
-  return data.result;
+  throw new Error(`Toss API ${path} failed after retries (rate limited)`);
 }
 
 export function clearTokenCache(): void {

@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getAccounts, getSnapshot, getExchangeRate, clearTokenCache } from "./toss-api/index.js";
+import { computePortfolioCandles } from "./portfolio-candles.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -463,6 +464,18 @@ app.delete("/api/sectors/:name/symbols/:symbol", async (req, res) => {
     }
     await saveSectors(data);
     res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: Portfolio candlestick (order history + historical OHLC)
+app.get("/api/portfolio-candles", async (_req, res) => {
+  try {
+    const { summary } = await getSnapshot();
+    const cashKrw = summary.orderable_amount_krw ?? 0;
+    const candles = await computePortfolioCandles(cashKrw);
+    res.json(candles);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

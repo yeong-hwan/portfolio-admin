@@ -3,12 +3,12 @@ import { usePortfolio } from "./hooks/usePortfolio";
 import { SummaryCards } from "./components/SummaryCards";
 import { PositionsTable } from "./components/PositionsTable";
 import { AllocationChart } from "./components/AllocationChart";
-import { TrendChart } from "./components/TrendChart";
 import { TopMovers } from "./components/TopMovers";
 import { Heatmap } from "./components/Heatmap";
 import { SectorView } from "./components/SectorView";
 import { SectorManager } from "./components/SectorManager";
 import { StaleBanner } from "./components/StaleBanner";
+import { PortfolioCandles } from "./components/PortfolioCandles";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -31,7 +31,6 @@ export default function App() {
   const [sectorMode, setSectorMode] = useState<"view" | "manage">("view");
   const {
     snapshot,
-    checkpoints,
     exchangeRate,
     sectorConfig,
     loading,
@@ -109,7 +108,7 @@ export default function App() {
           )}
           <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
 
-          <TrendChart checkpoints={checkpoints} onRefresh={refresh} />
+          <PortfolioCandles />
 
           {sectorConfig && (
             <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">

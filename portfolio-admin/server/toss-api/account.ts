@@ -7,7 +7,7 @@ function num(s: string | null | undefined): number {
   return parseFloat(s) || 0;
 }
 
-async function resolveAccountSeq(): Promise<number> {
+export async function resolveAccountSeq(): Promise<number> {
   const envSeq = process.env.TOSS_ACCOUNT_SEQ;
   if (envSeq) return parseInt(envSeq, 10);
   const accounts = await getAccounts();
@@ -87,16 +87,19 @@ export async function getSnapshot(): Promise<{ summary: AccountSummary; position
     getUsdKrwRate(),
   ]);
 
+  const positions = holdings.items.map((item) => toPosition(item, usdKrw));
+
+  const totalMarketValueKrw = positions.reduce((sum, p) => sum + p.market_value, 0);
+  const totalPurchaseKrw = positions.reduce((sum, p) => sum + p.average_price * p.quantity, 0);
+
   const summary: AccountSummary = {
-    total_asset_amount: num(holdings.marketValue.amount.krw),
-    evaluated_profit_amount: num(holdings.profitLoss.amount.krw),
+    total_asset_amount: totalMarketValueKrw,
+    evaluated_profit_amount: totalMarketValueKrw - totalPurchaseKrw,
     profit_rate: num(holdings.profitLoss.rate),
     orderable_amount_krw: 0,
     orderable_amount_usd: 0,
     markets: {},
   };
-
-  const positions = holdings.items.map((item) => toPosition(item, usdKrw));
   return { summary, positions };
 }
 
