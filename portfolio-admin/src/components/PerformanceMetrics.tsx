@@ -51,16 +51,14 @@ function StatCard({
   color?: "green" | "red" | "neutral";
 }) {
   const textColor =
-    color === "green"
-      ? "text-green-400"
-      : color === "red"
-      ? "text-red-400"
-      : "text-white";
+    color === "green" ? "text-green-400" : color === "red" ? "text-red-400" : "text-white";
+  const accentColor =
+    color === "green" ? "border-green-500/40" : color === "red" ? "border-red-500/40" : "border-white/10";
   return (
-    <div className="bg-white/[0.04] rounded-xl p-4 flex flex-col gap-1">
-      <span className="text-xs text-gray-500 uppercase tracking-wide">{label}</span>
-      <span className={`text-xl font-bold ${textColor}`}>{value}</span>
-      {sub && <span className="text-xs text-gray-500">{sub}</span>}
+    <div className={`bg-white/[0.04] rounded-xl px-4 py-4 flex flex-col gap-1.5 border-t-2 ${accentColor}`}>
+      <span className="text-[10px] text-gray-500 uppercase tracking-widest leading-none">{label}</span>
+      <span className={`text-2xl font-bold leading-none ${textColor}`}>{value}</span>
+      {sub && <span className="text-[11px] text-gray-500">{sub}</span>}
     </div>
   );
 }
@@ -97,8 +95,7 @@ export function PerformanceMetrics() {
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
-      width: containerRef.current.clientWidth,
-      height: 200,
+      autoSize: true,
     });
 
     const portSeries = chart.addSeries(LineSeries, {
@@ -109,38 +106,26 @@ export function PerformanceMetrics() {
     const spySeries = chart.addSeries(LineSeries, {
       color: "#6b7280",
       lineWidth: 2,
-      lineStyle: 2, // dashed
+      lineStyle: 2,
       priceFormat: { type: "custom", formatter: (v: number) => v.toFixed(1), minMove: 0.1 },
     });
 
-    portSeries.setData(
-      data.series.map((p) => ({ time: p.date as any, value: p.portfolio }))
-    );
+    portSeries.setData(data.series.map((p) => ({ time: p.date as any, value: p.portfolio })));
     spySeries.setData(
-      data.series
-        .filter((p) => p.benchmark != null)
-        .map((p) => ({ time: p.date as any, value: p.benchmark! }))
+      data.series.filter((p) => p.benchmark != null).map((p) => ({ time: p.date as any, value: p.benchmark! }))
     );
 
     chart.timeScale().fitContent();
     chartRef.current = chart;
-
-    const onResize = () => {
-      if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
   }, [data]);
 
   const p = data?.portfolio;
   const b = data?.benchmark;
-
-  const sharpeColor = (s: number) =>
-    s >= 1 ? "green" : s >= 0.5 ? "neutral" : "red";
+  const sharpeColor = (s: number) => s >= 1 ? "green" : s >= 0.5 ? "neutral" : "red";
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full flex flex-col gap-5">
+      <div className="flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
           {data && (
@@ -152,7 +137,7 @@ export function PerformanceMetrics() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center h-40 text-gray-500 text-sm gap-2">
+        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm gap-2">
           <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
@@ -160,13 +145,13 @@ export function PerformanceMetrics() {
         </div>
       )}
       {!loading && error && (
-        <div className="text-rose-400 text-sm text-center py-8">{error}</div>
+        <div className="flex-1 flex items-center justify-center text-rose-400 text-sm">{error}</div>
       )}
 
       {!loading && !error && p && b && (
         <>
           {/* 포트폴리오 핵심 지표 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
             <StatCard
               label="총 수익률"
               value={pct(p.totalReturn)}
@@ -196,7 +181,7 @@ export function PerformanceMetrics() {
           </div>
 
           {/* SPY 비교 */}
-          <div className="border-t border-white/[0.08] pt-4">
+          <div className="border-t border-white/[0.08] pt-4 shrink-0">
             <div className="grid grid-cols-3 gap-3">
               <StatCard
                 label="알파 (Jensen's α)"
@@ -217,8 +202,8 @@ export function PerformanceMetrics() {
           </div>
 
           {/* 상대 성과 차트 */}
-          <div className="border-t border-white/[0.08] pt-4">
-            <div className="flex items-center gap-4 mb-3">
+          <div className="border-t border-white/[0.08] pt-4 flex-1 min-h-0 flex flex-col">
+            <div className="flex items-center gap-4 mb-3 shrink-0">
               <p className="text-xs text-gray-500 uppercase tracking-wide">상대 성과 (기준=100)</p>
               <div className="flex items-center gap-3 ml-auto">
                 <span className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -229,7 +214,7 @@ export function PerformanceMetrics() {
                 </span>
               </div>
             </div>
-            <div ref={containerRef} />
+            <div ref={containerRef} className="flex-1 min-h-0" />
           </div>
         </>
       )}
