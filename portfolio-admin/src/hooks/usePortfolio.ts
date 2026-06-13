@@ -146,9 +146,7 @@ export function usePortfolio() {
     lastRefresh,
     refresh: () => {
       fetchSnapshot();
-      fetchCheckpoints();
       fetchExchangeRate();
-      fetchSectors();
     },
     addSector,
     deleteSector,

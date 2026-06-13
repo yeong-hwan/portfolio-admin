@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { getAccounts, getSnapshot, getExchangeRate, clearTokenCache } from "./toss-api/index.js";
 import { computePortfolioCandles } from "./portfolio-candles.js";
+import { getPerformanceMetrics } from "./performance.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -464,6 +465,18 @@ app.delete("/api/sectors/:name/symbols/:symbol", async (req, res) => {
     }
     await saveSectors(data);
     res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: Portfolio performance metrics (Sharpe, MDD, alpha/beta vs SPY)
+app.get("/api/performance-metrics", async (_req, res) => {
+  try {
+    const { summary } = await getSnapshot();
+    const cashKrw = summary.orderable_amount_krw ?? 0;
+    const metrics = await getPerformanceMetrics(cashKrw);
+    res.json(metrics);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

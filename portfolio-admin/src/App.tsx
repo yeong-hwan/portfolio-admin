@@ -9,6 +9,7 @@ import { SectorView } from "./components/SectorView";
 import { SectorManager } from "./components/SectorManager";
 import { StaleBanner } from "./components/StaleBanner";
 import { PortfolioCandles } from "./components/PortfolioCandles";
+import { PerformanceMetrics } from "./components/PerformanceMetrics";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -109,6 +110,8 @@ export default function App() {
           <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
 
           <PortfolioCandles />
+
+          <PerformanceMetrics />
 
           {sectorConfig && (
             <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
