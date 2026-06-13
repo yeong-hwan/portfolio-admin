@@ -65,8 +65,7 @@ export function PortfolioCandles() {
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
-      width: containerRef.current.clientWidth,
-      height: 380,
+      autoSize: true,
     });
 
     const series = chart.addSeries(CandlestickSeries, {
@@ -89,11 +88,7 @@ export function PortfolioCandles() {
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
-    const onResize = () => {
-      if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {};
   }, [candles, range]);
 
   return (
@@ -134,7 +129,7 @@ export function PortfolioCandles() {
         <div className="flex items-center justify-center h-[380px] text-rose-400 text-sm">{error}</div>
       )}
       {!loading && !error && (
-        <div ref={containerRef} />
+        <div ref={containerRef} className="h-[340px]" />
       )}
     </div>
   );

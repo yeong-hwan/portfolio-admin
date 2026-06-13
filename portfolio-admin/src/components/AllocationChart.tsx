@@ -85,7 +85,7 @@ export const AllocationChart = memo(function AllocationChart({ positions, cashKr
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mt-3">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mt-8">
         {data.map((d) => (
           <div key={d.name} className="flex items-center gap-2 min-w-0">
             <span

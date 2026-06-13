@@ -20,10 +20,16 @@ interface CandleCache {
   candles: DayCandle[];
 }
 
+// In-process cache: symbol → CandleCache. Survives across requests until server restart.
+const memCache = new Map<string, CandleCache>();
+
 async function loadCandleCache(symbol: string): Promise<CandleCache | null> {
+  if (memCache.has(symbol)) return memCache.get(symbol)!;
   try {
     const data = await fs.readFile(path.join(CANDLES_DIR, `${symbol}.json`), 'utf-8');
-    return JSON.parse(data) as CandleCache;
+    const cache = JSON.parse(data) as CandleCache;
+    memCache.set(symbol, cache);
+    return cache;
   } catch {
     return null;
   }
@@ -32,6 +38,7 @@ async function loadCandleCache(symbol: string): Promise<CandleCache | null> {
 async function saveCandleCache(cache: CandleCache): Promise<void> {
   await fs.mkdir(CANDLES_DIR, { recursive: true });
   await fs.writeFile(path.join(CANDLES_DIR, `${cache.symbol}.json`), JSON.stringify(cache));
+  memCache.set(cache.symbol, cache);
 }
 
 // Yahoo Finance uses hyphens instead of dots (e.g. BRK.B → BRK-B)

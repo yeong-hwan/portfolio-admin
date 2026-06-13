@@ -8,7 +8,8 @@
     "server": "tsx server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prefetch": "tsx server/prefetch-candles.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

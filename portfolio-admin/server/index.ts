@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 import { getAccounts, getSnapshot, getExchangeRate, clearTokenCache } from "./toss-api/index.js";
 import { computePortfolioCandles } from "./portfolio-candles.js";
 import { getPerformanceMetrics } from "./performance.js";
+import { getCorrelationMatrix } from "./correlation.js";
+import { getMacroSensitivity } from "./macro.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +18,8 @@ const DATA_DIR = path.join(__dirname, "..", "data");
 const CHECKPOINTS_FILE = path.join(DATA_DIR, "checkpoints.json");
 const SECTORS_FILE = path.join(DATA_DIR, "sectors.json");
 const LAST_SNAPSHOT_FILE = path.join(DATA_DIR, "last-snapshot.json");
+
+let candlesResultCache: { data: unknown; at: number } | null = null;
 
 app.use(cors());
 app.use(express.json());
@@ -483,12 +487,59 @@ app.get("/api/performance-metrics", async (_req, res) => {
 });
 
 // API: Portfolio candlestick (order history + historical OHLC)
+// Cached 5 min in-memory — recomputation reads ~100 symbol files + Toss API
 app.get("/api/portfolio-candles", async (_req, res) => {
+  if (candlesResultCache && Date.now() - candlesResultCache.at < 5 * 60 * 1000) {
+    return res.json(candlesResultCache.data);
+  }
   try {
-    const { summary } = await getSnapshot();
-    const cashKrw = summary.orderable_amount_krw ?? 0;
+    const cashKrw = parseInt(process.env.CASH_KRW ?? "0", 10);
     const candles = await computePortfolioCandles(cashKrw);
+    candlesResultCache = { data: candles, at: Date.now() };
     res.json(candles);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: Correlation matrix for current positions (1-year daily returns)
+// Derives current positions from orders-cache.json to avoid Toss API dependency.
+let correlationCache: { data: unknown; at: number } | null = null;
+app.get("/api/correlation", async (_req, res) => {
+  if (correlationCache && Date.now() - correlationCache.at < 60 * 60 * 1000) {
+    return res.json(correlationCache.data);
+  }
+  try {
+    const ordersRaw = JSON.parse(await fs.readFile(path.join(DATA_DIR, "orders-cache.json"), "utf-8"));
+    const BLACKLIST = new Set(["GTIJF"]);
+    const pos: Record<string, number> = {};
+    for (const o of (ordersRaw.orders as any[]).sort((a: any, b: any) => a.filledAt.localeCompare(b.filledAt))) {
+      if (BLACKLIST.has(o.symbol)) continue;
+      if (o.side === "BUY") pos[o.symbol] = (pos[o.symbol] ?? 0) + o.filledQuantity;
+      else {
+        pos[o.symbol] = (pos[o.symbol] ?? 0) - o.filledQuantity;
+        if (pos[o.symbol] <= 0.0001) delete pos[o.symbol];
+      }
+    }
+    const symbols = Object.keys(pos);
+    const result = await getCorrelationMatrix(symbols);
+    correlationCache = { data: result, at: Date.now() };
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: Macro sensitivity (beta/correlation vs SPY, TLT, GLD, etc.)
+let macroCache: { data: unknown; at: number } | null = null;
+app.get("/api/macro-sensitivity", async (_req, res) => {
+  if (macroCache && Date.now() - macroCache.at < 60 * 60 * 1000) {
+    return res.json(macroCache.data);
+  }
+  try {
+    const result = await getMacroSensitivity();
+    macroCache = { data: result, at: Date.now() };
+    res.json(result);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -525,4 +576,15 @@ app.get("/{*splat}", (_req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Portfolio admin API running on http://localhost:${PORT}`);
   saveDailyCheckpoint();
+  // 서버 시작 후 캔들 캐시 워밍업 — 첫 사용자 요청을 즉시 반환하기 위해
+  setTimeout(async () => {
+    try {
+      const cashKrw = parseInt(process.env.CASH_KRW ?? "0", 10);
+      const candles = await computePortfolioCandles(cashKrw);
+      candlesResultCache = { data: candles, at: Date.now() };
+      console.log(`[warmup] ${candles.length} portfolio candles cached`);
+    } catch (e) {
+      console.error("[warmup] candles failed:", e);
+    }
+  }, 500);
 });

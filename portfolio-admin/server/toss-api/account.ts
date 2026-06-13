@@ -96,7 +96,10 @@ export async function getSnapshot(): Promise<{ summary: AccountSummary; position
     total_asset_amount: totalMarketValueKrw,
     evaluated_profit_amount: totalMarketValueKrw - totalPurchaseKrw,
     profit_rate: num(holdings.profitLoss.rate),
-    orderable_amount_krw: 0,
+    // TODO: Toss 공개 API에 현금 잔액 엔드포인트 없음 (14개 경로 전수 확인).
+    //       파트너 API 또는 신규 엔드포인트 추가 시 여기서 반영.
+    //       현재는 .env의 CASH_KRW 로 수동 설정.
+    orderable_amount_krw: parseInt(process.env.CASH_KRW ?? '0', 10),
     orderable_amount_usd: 0,
     markets: {},
   };

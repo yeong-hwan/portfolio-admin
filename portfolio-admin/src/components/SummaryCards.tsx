@@ -74,12 +74,12 @@ function Card({
   color?: string;
 }) {
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5 hover:border-gray-600/50 transition-colors">
-      <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">
+    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-3 sm:p-4 md:p-5 hover:border-gray-600/50 transition-colors">
+      <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider mb-1">
         {label}
       </p>
-      <p className={`text-xl font-bold ${color || "text-white"}`}>{value}</p>
-      {sub && <p className={`text-sm mt-1 ${color || "text-gray-400"}`}>{sub}</p>}
+      <p className={`text-sm sm:text-base lg:text-xl font-bold leading-tight ${color || "text-white"}`}>{value}</p>
+      {sub && <p className={`text-[11px] sm:text-xs lg:text-sm mt-1 ${color || "text-gray-400"}`}>{sub}</p>}
     </div>
   );
 }

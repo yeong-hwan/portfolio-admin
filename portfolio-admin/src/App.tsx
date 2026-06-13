@@ -5,11 +5,11 @@ import { PositionsTable } from "./components/PositionsTable";
 import { AllocationChart } from "./components/AllocationChart";
 import { TopMovers } from "./components/TopMovers";
 import { Heatmap } from "./components/Heatmap";
-import { SectorView } from "./components/SectorView";
-import { SectorManager } from "./components/SectorManager";
 import { StaleBanner } from "./components/StaleBanner";
 import { PortfolioCandles } from "./components/PortfolioCandles";
 import { PerformanceMetrics } from "./components/PerformanceMetrics";
+import { CorrelationHeatmap } from "./components/CorrelationHeatmap";
+import { MacroSensitivity } from "./components/MacroSensitivity";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -28,26 +28,53 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
+function CollapseSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-700/30 transition-colors"
+      >
+        <span className="text-base font-semibold text-white">{title}</span>
+        <svg
+          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="border-t border-gray-700/50">{children}</div>}
+    </div>
+  );
+}
+
 export default function App() {
-  const [sectorMode, setSectorMode] = useState<"view" | "manage">("view");
   const {
     snapshot,
     exchangeRate,
-    sectorConfig,
     loading,
     error,
     lastRefresh,
     refresh,
-    addSector,
-    deleteSector,
-    assignSymbol,
-    removeSymbol,
   } = usePortfolio();
 
   const cashKrw = snapshot?.summary.orderable_amount_krw ?? 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* Loading bar */}
+      <div className={`fixed top-0 left-0 right-0 z-[60] h-0.5 overflow-hidden transition-opacity duration-300 ${loading ? "opacity-100" : "opacity-0"}`}>
+        <div
+          className="h-full w-2/5 rounded-full"
+          style={{
+            background: "linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6)",
+            animation: "loadingBar 1.2s linear infinite",
+          }}
+        />
+      </div>
+      <style>{`@keyframes loadingBar { 0% { transform: translateX(-150%); } 100% { transform: translateX(350%); } }`}</style>
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-gray-950/80 backdrop-blur border-b border-gray-800/50">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
@@ -56,7 +83,7 @@ export default function App() {
               Portfolio Admin
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              tossinvest-cli dashboard
+              v0.1.6
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -102,59 +129,19 @@ export default function App() {
       {snapshot ? (
         <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
           {snapshot.stale && (
-            <StaleBanner
-              snapshot={snapshot}
-              onRefresh={refresh}
-            />
+            <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
           <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
 
-          <PortfolioCandles />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <PortfolioCandles />
+            <PerformanceMetrics />
+          </div>
 
-          <PerformanceMetrics />
-
-          {sectorConfig && (
-            <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-white">
-                  {sectorMode === "view" ? "섹터별 현황" : "섹터 관리"}
-                </h2>
-                <div className="flex gap-1">
-                  {(["view", "manage"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setSectorMode(m)}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-                        sectorMode === m
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700"
-                      }`}
-                    >
-                      {m === "view" ? "현황" : "관리"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                {sectorMode === "view" ? (
-                  <SectorView
-                    positions={snapshot.positions}
-                    sectorConfig={sectorConfig}
-                    cashKrw={cashKrw}
-                  />
-                ) : (
-                  <SectorManager
-                    positions={snapshot.positions}
-                    sectorConfig={sectorConfig}
-                    onAddSector={addSector}
-                    onDeleteSector={deleteSector}
-                    onAssignSymbol={assignSymbol}
-                    onRemoveSymbol={removeSymbol}
-                  />
-                )}
-              </div>
-            </div>
-          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <MacroSensitivity />
+            <CorrelationHeatmap />
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -163,9 +150,13 @@ export default function App() {
             <AllocationChart positions={snapshot.positions} cashKrw={cashKrw} />
           </div>
 
-          <TopMovers positions={snapshot.positions} />
+          <CollapseSection title="오늘 상승/하락">
+            <TopMovers positions={snapshot.positions} />
+          </CollapseSection>
 
-          <PositionsTable positions={snapshot.positions} />
+          <CollapseSection title="보유종목">
+            <PositionsTable positions={snapshot.positions} />
+          </CollapseSection>
         </main>
       ) : (
         !loading && (

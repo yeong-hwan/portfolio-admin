@@ -194,14 +194,18 @@ function applyOrder(positions: Record<string, number>, order: FilledOrder) {
   }
 }
 
+// Symbols excluded from candle computation (delisted, bad OTC data, etc.)
+const CANDLE_BLACKLIST = new Set(['GTIJF']);
+
 // --- Public API ---
 
 export async function computePortfolioCandles(cashKrw = 0): Promise<PortfolioCandle[]> {
   const accountSeq = await resolveAccountSeq();
-  const [orders, cache] = await Promise.all([
+  const [rawOrders, cache] = await Promise.all([
     getOrders(accountSeq),
     loadCandlesCache(),
   ]);
+  const orders = rawOrders.filter(o => !CANDLE_BLACKLIST.has(o.symbol));
   if (!orders.length) return [];
 
   const today = new Date().toISOString().split('T')[0];
