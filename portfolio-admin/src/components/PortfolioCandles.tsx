@@ -9,9 +9,16 @@ interface PortfolioCandle {
   close: number;
 }
 
+interface TooltipData {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
 type Range = "1M" | "3M" | "6M" | "YTD" | "1Y" | "All";
 
-// 천만원 단위로 표시 (소수점 2자리, 3자리에서 내림)
 function formatK(value: number): string {
   const k = Math.floor(value / 10_000_000 * 100) / 100;
   return k.toFixed(2) + " K";
@@ -33,6 +40,7 @@ export function PortfolioCandles() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<Range>("All");
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
 
@@ -48,6 +56,7 @@ export function PortfolioCandles() {
 
     chartRef.current?.remove();
     chartRef.current = null;
+    setTooltip(null);
 
     const filtered = filterByRange(candles, range);
     if (!filtered.length) return;
@@ -88,6 +97,16 @@ export function PortfolioCandles() {
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
+    chart.subscribeCrosshairMove(param => {
+      if (!param.point || !param.time || !param.seriesData.size) {
+        setTooltip(null);
+        return;
+      }
+      const d = param.seriesData.get(series) as { open: number; high: number; low: number; close: number } | undefined;
+      if (!d) { setTooltip(null); return; }
+      setTooltip({ date: param.time as string, open: d.open, high: d.high, low: d.low, close: d.close });
+    });
+
     return () => {};
   }, [candles, range]);
 
@@ -118,7 +137,7 @@ export function PortfolioCandles() {
       </div>
 
       {loading && (
-        <div className="flex flex-col items-center justify-center h-[380px] gap-2 text-gray-500 text-sm">
+        <div className="flex flex-col items-center justify-center h-[420px] gap-2 text-gray-500 text-sm">
           <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
@@ -126,10 +145,29 @@ export function PortfolioCandles() {
         </div>
       )}
       {!loading && error && (
-        <div className="flex items-center justify-center h-[380px] text-rose-400 text-sm">{error}</div>
+        <div className="flex items-center justify-center h-[420px] text-rose-400 text-sm">{error}</div>
       )}
       {!loading && !error && (
-        <div ref={containerRef} className="h-[340px]" />
+        <div className="relative">
+          <div ref={containerRef} className="h-[420px]" />
+          {tooltip && (
+            <div className="absolute top-2 left-2 bg-gray-900/90 backdrop-blur border border-gray-700/60 rounded-xl px-3 py-2.5 text-xs pointer-events-none">
+              <p className="text-gray-400 mb-1.5 font-medium">{tooltip.date}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <span className="text-gray-500">시가</span>
+                <span className="text-white tabular-nums text-right">{formatK(tooltip.open)}</span>
+                <span className="text-gray-500">고가</span>
+                <span className="text-green-400 tabular-nums text-right">{formatK(tooltip.high)}</span>
+                <span className="text-gray-500">저가</span>
+                <span className="text-red-400 tabular-nums text-right">{formatK(tooltip.low)}</span>
+                <span className="text-gray-500">종가</span>
+                <span className={`tabular-nums text-right ${tooltip.close >= tooltip.open ? "text-green-400" : "text-red-400"}`}>
+                  {formatK(tooltip.close)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
