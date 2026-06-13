@@ -57,7 +57,7 @@ function StatCard({
       ? "text-red-400"
       : "text-white";
   return (
-    <div className="bg-white/[0.04] rounded-xl p-4 flex flex-col gap-1">
+    <div className="bg-white/[0.04] rounded-xl p-5 flex flex-col gap-1.5">
       <span className="text-xs text-gray-500 uppercase tracking-wide">{label}</span>
       <span className={`text-xl font-bold ${textColor}`}>{value}</span>
       {sub && <span className="text-xs text-gray-500">{sub}</span>}
@@ -98,7 +98,7 @@ export function PerformanceMetrics() {
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
       width: containerRef.current.clientWidth,
-      height: 200,
+      height: 220,
     });
 
     const portSeries = chart.addSeries(LineSeries, {
@@ -139,7 +139,7 @@ export function PerformanceMetrics() {
     s >= 1 ? "green" : s >= 0.5 ? "neutral" : "red";
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-5">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
