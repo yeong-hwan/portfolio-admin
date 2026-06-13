@@ -142,7 +142,7 @@ export function MacroSensitivity() {
   const TAB_LABELS = { beta: "베타 (β)", corr: "상관계수", alpha: "알파 (α)" };
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5 h-full flex flex-col">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full flex flex-col">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">매크로 민감도</h2>
@@ -194,7 +194,7 @@ export function MacroSensitivity() {
           {/* 지표별 행 */}
           <div className="flex-1 flex flex-col justify-between">
             {data.factors.map(f => (
-              <div key={f.symbol} className="space-y-1 py-2 border-b border-gray-700/30 last:border-0">
+              <div key={f.symbol} className="space-y-1 py-2 border-b border-white/[0.06] last:border-0">
                 <div className="flex items-center gap-3">
                   <div className="w-32 shrink-0">
                     <p className="text-sm text-white font-medium">{f.label}</p>
@@ -214,7 +214,7 @@ export function MacroSensitivity() {
             ))}
           </div>
 
-          <div className="border-t border-gray-700/50 pt-3 flex gap-6 text-xs text-gray-500">
+          <div className="border-t border-white/[0.08] pt-3 flex gap-6 text-xs text-gray-500">
             <span>포트폴리오 CAGR <span className={data.portfolio.annualizedReturn >= 0 ? "text-green-400" : "text-rose-400"}>{pct(data.portfolio.annualizedReturn)}</span></span>
             <span>총 수익 <span className={data.portfolio.totalReturn >= 0 ? "text-green-400" : "text-rose-400"}>{pct(data.portfolio.totalReturn)}</span></span>
           </div>

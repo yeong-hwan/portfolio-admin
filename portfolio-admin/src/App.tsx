@@ -31,7 +31,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
 function CollapseSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl overflow-hidden">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-700/30 transition-colors"
@@ -44,7 +44,7 @@ function CollapseSection({ title, children }: { title: string; children: React.R
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
-      {open && <div className="border-t border-gray-700/50">{children}</div>}
+      {open && <div className="border-t border-white/[0.08]">{children}</div>}
     </div>
   );
 }
@@ -76,7 +76,7 @@ export default function App() {
       <style>{`@keyframes loadingBar { 0% { transform: translateX(-150%); } 100% { transform: translateX(350%); } }`}</style>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-gray-950/80 backdrop-blur border-b border-gray-800/50">
+      <header className="bg-gray-950 border-b border-gray-800/50">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
@@ -96,7 +96,7 @@ export default function App() {
               href="http://100.110.86.86:3001"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-xl transition-all active:scale-90 border border-gray-700/50 hover:border-gray-600/50"
+              className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-xl transition-all active:scale-90 border border-white/[0.08] hover:border-gray-600/50"
               title="홈서버 대시보드"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -107,7 +107,7 @@ export default function App() {
             <button
               onClick={refresh}
               disabled={loading}
-              className="p-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/50 disabled:text-gray-600 text-gray-300 hover:text-white rounded-xl transition-all active:scale-90 border border-gray-700/50 hover:border-gray-600/50"
+              className="p-2.5 bg-gray-800 hover:bg-gray-700 disabled:bg-white/[0.04] disabled:text-gray-600 text-gray-300 hover:text-white rounded-xl transition-all active:scale-90 border border-white/[0.08] hover:border-gray-600/50"
               title="새로고침"
             >
               <RefreshIcon spinning={loading} />
@@ -141,7 +141,7 @@ export default function App() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <MacroSensitivity />
-            <CorrelationHeatmap />
+            <CorrelationHeatmap positions={snapshot.positions} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -99,7 +99,7 @@ export const TrendChart = memo(function TrendChart({ checkpoints, onRefresh }: T
 
   if (checkpoints.length === 0) {
     return (
-      <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
+      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
         <h2 className="text-lg font-semibold text-white mb-4">수익 추이</h2>
         <p className="text-gray-500 text-sm py-12 text-center">
           아직 기록된 체크포인트가 없습니다. 미장 마감 후 자동으로 기록됩니다.
@@ -146,7 +146,7 @@ export const TrendChart = memo(function TrendChart({ checkpoints, onRefresh }: T
   const latest = data[data.length - 1];
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">
@@ -167,7 +167,7 @@ export const TrendChart = memo(function TrendChart({ checkpoints, onRefresh }: T
           <button
             onClick={handleFillGaps}
             disabled={filling}
-            className="px-2.5 py-1 text-xs rounded-lg transition-colors bg-gray-700/30 text-gray-500 hover:text-gray-300 hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-700/50"
+            className="px-2.5 py-1 text-xs rounded-lg transition-colors bg-gray-700/30 text-gray-500 hover:text-gray-300 hover:bg-gray-700/50 disabled:opacity-50 disabled:cursor-not-allowed border border-white/[0.08]"
           >
             {filling ? (
               <span className="flex items-center gap-1">

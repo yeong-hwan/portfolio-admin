@@ -48,7 +48,7 @@ function MoverCard({
   const maxRate = Math.max(...items.map((p) => Math.abs(p[rateKey])), 0);
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-4">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-4">
       <h3 className="text-sm font-medium text-gray-400 mb-3">{title}</h3>
       <div className="space-y-2">
         {items.map((p) => {

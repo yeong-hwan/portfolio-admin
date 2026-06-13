@@ -7,7 +7,7 @@ interface Props {
 
 export function StaleBanner({ snapshot, onRefresh }: Props) {
   return (
-    <div className="px-4 py-3 rounded-xl border bg-gray-800/50 border-gray-700/30 text-gray-400">
+    <div className="px-4 py-3 rounded-xl border bg-white/[0.04] border-white/[0.06] text-gray-400">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import type { Position } from "../types";
 
 interface CorrelationResult {
   symbols: string[];
   matrix: number[][];
   period: { from: string; to: string; days: number };
 }
+
+type SortBy = "default" | "return" | "value";
 
 function corrColor(v: number): string {
   if (v === 1) return "rgba(239,68,68,0.9)";
@@ -19,10 +22,11 @@ function textColor(v: number): string {
 
 const LABEL_W = 56;
 
-export function CorrelationHeatmap() {
+export function CorrelationHeatmap({ positions = [] }: { positions?: Position[] }) {
   const [data, setData] = useState<CorrelationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortBy>("return");
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardWidth, setCardWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{ symA: string; symB: string; v: number; x: number; y: number } | null>(null);
@@ -42,15 +46,32 @@ export function CorrelationHeatmap() {
     return () => ro.disconnect();
   }, []);
 
-  const n = data?.symbols.length ?? 0;
-  // grid가 실제 크기를 처리하고, 이 값은 숫자 표시 여부 결정에만 사용
+  const { symbols: displaySymbols, matrix: displayMatrix } = useMemo(() => {
+    if (!data) return { symbols: [], matrix: [] };
+    if (sortBy === "default") return { symbols: data.symbols, matrix: data.matrix };
+
+    const posMap = new Map(positions.map(p => [p.symbol, p]));
+    const indices = [...Array(data.symbols.length).keys()].sort((a, b) => {
+      const pa = posMap.get(data.symbols[a]);
+      const pb = posMap.get(data.symbols[b]);
+      if (sortBy === "return") return (pb?.profit_rate ?? 0) - (pa?.profit_rate ?? 0);
+      return (pb?.market_value ?? 0) - (pa?.market_value ?? 0);
+    });
+
+    return {
+      symbols: indices.map(i => data.symbols[i]),
+      matrix: indices.map(i => indices.map(j => data.matrix[i][j])),
+    };
+  }, [data, sortBy, positions]);
+
+  const n = displaySymbols.length;
   const estimatedCellPx = n > 0 && cardWidth > 0
     ? (cardWidth - 40 - LABEL_W) / n
     : 32;
   const showText = estimatedCellPx >= 22;
 
   return (
-    <div ref={cardRef} className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5">
+    <div ref={cardRef} className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">수익률 상관관계</h2>
@@ -60,13 +81,21 @@ export function CorrelationHeatmap() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-sm inline-block bg-red-500/80" />양의 상관
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-sm inline-block bg-blue-500/80" />음의 상관
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1">
+            {(["return", "value"] as SortBy[]).map(s => (
+              <button key={s} onClick={() => setSortBy(s)}
+                className={`px-2 py-1 text-xs rounded-lg transition-colors ${
+                  sortBy === s ? "bg-blue-600 text-white" : "bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-700"
+                }`}>
+                {s === "return" ? "수익률순" : "보유금액순"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block bg-red-500/80" />양</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block bg-blue-500/80" />음</span>
+          </div>
         </div>
       </div>
 
@@ -94,7 +123,7 @@ export function CorrelationHeatmap() {
           <div />
 
           {/* 상단 심볼 헤더 */}
-          {data.symbols.map(sym => (
+          {displaySymbols.map(sym => (
             <div
               key={sym}
               style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", height: "3rem" }}
@@ -105,14 +134,14 @@ export function CorrelationHeatmap() {
           ))}
 
           {/* 행렬 행 */}
-          {data.symbols.flatMap((symA, i) => [
+          {displaySymbols.flatMap((symA, i) => [
             <div
               key={`label-${symA}`}
               className="text-right pr-1 text-gray-400 font-mono text-[9px] truncate self-center"
             >
               {symA}
             </div>,
-            ...data.matrix[i].map((v, j) => (
+            ...displayMatrix[i].map((v, j) => (
               <div
                 key={`cell-${i}-${j}`}
                 style={{
@@ -122,7 +151,7 @@ export function CorrelationHeatmap() {
                   fontSize: Math.max(7, estimatedCellPx * 0.32),
                 }}
                 className="flex items-center justify-center rounded-sm font-mono overflow-hidden cursor-default"
-                onMouseEnter={e => setTooltip({ symA, symB: data.symbols[j], v, x: e.clientX, y: e.clientY })}
+                onMouseEnter={e => setTooltip({ symA, symB: displaySymbols[j], v, x: e.clientX, y: e.clientY })}
                 onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
                 onMouseLeave={() => setTooltip(null)}
               >

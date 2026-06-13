@@ -66,8 +66,8 @@ export const PositionsTable = memo(function PositionsTable({ positions }: { posi
   const totalDailyPnl = positions.reduce((s, p) => s + p.daily_profit_loss, 0);
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl overflow-hidden">
-      <div className="p-4 border-b border-gray-700/50 flex items-center justify-between">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden">
+      <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">
           보유 종목 ({positions.length})
         </h2>
@@ -82,7 +82,7 @@ export const PositionsTable = memo(function PositionsTable({ positions }: { posi
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-700/50">
+            <tr className="border-b border-white/[0.08]">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
@@ -106,7 +106,7 @@ export const PositionsTable = memo(function PositionsTable({ positions }: { posi
             {sorted.map((p) => (
               <tr
                 key={p.symbol}
-                className="border-b border-gray-700/30 hover:bg-gray-700/30 transition-colors"
+                className="border-b border-white/[0.06] hover:bg-gray-700/30 transition-colors"
               >
                 <td className="px-4 py-3">
                   <div className="font-medium text-white">{p.symbol}</div>

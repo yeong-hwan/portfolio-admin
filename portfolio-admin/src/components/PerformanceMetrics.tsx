@@ -57,7 +57,7 @@ function StatCard({
       ? "text-red-400"
       : "text-white";
   return (
-    <div className="bg-gray-900/60 rounded-xl p-4 flex flex-col gap-1">
+    <div className="bg-white/[0.04] rounded-xl p-4 flex flex-col gap-1">
       <span className="text-xs text-gray-500 uppercase tracking-wide">{label}</span>
       <span className={`text-xl font-bold ${textColor}`}>{value}</span>
       {sub && <span className="text-xs text-gray-500">{sub}</span>}
@@ -139,7 +139,7 @@ export function PerformanceMetrics() {
     s >= 1 ? "green" : s >= 0.5 ? "neutral" : "red";
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5 space-y-5">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
@@ -199,7 +199,7 @@ export function PerformanceMetrics() {
           </div>
 
           {/* SPY 비교 */}
-          <div className="border-t border-gray-700/50 pt-4">
+          <div className="border-t border-white/[0.08] pt-4">
             <p className="text-xs text-gray-500 mb-3 uppercase tracking-wide">vs SPY 비교</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatCard
@@ -239,7 +239,7 @@ export function PerformanceMetrics() {
           </div>
 
           {/* 상대 성과 차트 */}
-          <div className="border-t border-gray-700/50 pt-4">
+          <div className="border-t border-white/[0.08] pt-4">
             <div className="flex items-center gap-4 mb-3">
               <p className="text-xs text-gray-500 uppercase tracking-wide">상대 성과 (기준=100)</p>
               <div className="flex items-center gap-3 ml-auto">

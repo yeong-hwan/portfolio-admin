@@ -26,48 +26,43 @@ export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }
   const rate = exchangeRate?.rate ?? null;
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4">
+    <div className="flex gap-4">
       {/* 메인 블록: 총자산 + 투자원금 + 평가손익 */}
-      <div className="flex-1 bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-0">
-        {/* 총 자산 */}
-        <div className="sm:pr-6 sm:border-r sm:border-gray-700/50">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">총 자산</p>
-          <p className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            {`₩ ${fmt(summary.total_asset_amount)}`}
+      <div className="flex-1 min-w-0 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl py-5 flex items-center divide-x divide-white/[0.08]">
+        <div className="px-7 shrink-0">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">총 자산</p>
+          <p className="text-xl lg:text-2xl font-bold text-white whitespace-nowrap">
+            ₩ {fmt(summary.total_asset_amount)}
           </p>
         </div>
-
-        {/* 투자원금 + 평가손익 */}
-        <div className="sm:pl-6 flex gap-6 sm:gap-8">
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">투자 원금</p>
-            <p className="text-xl sm:text-2xl font-semibold text-gray-200">{`₩ ${fmt(principal)}`}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">평가 손익</p>
-            <p className={`text-xl sm:text-2xl font-semibold ${profitColor}`}>
-              {`${profitSign}₩ ${fmt(profit)}`}
-            </p>
-            <p className={`text-xs font-medium mt-0.5 ${profitColor}`}>
-              {profitSign}{pct(summary.profit_rate)}
-            </p>
-          </div>
+        <div className="px-7 shrink-0">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">투자 원금</p>
+          <p className="text-xl lg:text-2xl font-bold text-white whitespace-nowrap">
+            ₩ {fmt(principal)}
+          </p>
+        </div>
+        <div className="px-7 shrink-0">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">평가 손익</p>
+          <p className={`text-xl lg:text-2xl font-bold whitespace-nowrap ${profitColor}`}>
+            {profitSign}₩ {fmt(profit)}
+          </p>
+          <p className={`text-xs font-medium mt-1 ${profitColor}`}>
+            {profitSign}{pct(summary.profit_rate)}
+          </p>
         </div>
       </div>
 
       {/* 보조 블록: 환율 */}
-      <div className="sm:w-40 bg-gray-800/40 backdrop-blur border border-gray-700/30 rounded-2xl px-5 py-5 flex flex-row sm:flex-col justify-between sm:justify-start sm:gap-1">
-        <p className="text-[10px] text-gray-600 uppercase tracking-widest sm:mb-1.5">USD/KRW</p>
-        <div className="text-right sm:text-left">
-          <p className="text-base font-semibold text-gray-400">
-            {rate ? `₩${rate.toFixed(2)}` : "—"}
-          </p>
-          <p className="text-[10px] text-gray-600 mt-0.5">
-            {exchangeRate?.timestamp
-              ? new Date(exchangeRate.timestamp).toLocaleDateString("ko-KR")
-              : "로딩 중"}
-          </p>
-        </div>
+      <div className="w-36 shrink-0 bg-white/[0.03] backdrop-blur border border-white/[0.06] rounded-2xl px-5 py-6 flex flex-col justify-center gap-1">
+        <p className="text-[10px] text-gray-600 uppercase tracking-widest">USD/KRW</p>
+        <p className="text-base font-semibold text-gray-400 whitespace-nowrap">
+          {rate ? `₩ ${rate.toFixed(2)}` : "—"}
+        </p>
+        <p className="text-[10px] text-gray-600">
+          {exchangeRate?.timestamp
+            ? new Date(exchangeRate.timestamp).toLocaleDateString("ko-KR")
+            : "로딩 중"}
+        </p>
       </div>
     </div>
   );

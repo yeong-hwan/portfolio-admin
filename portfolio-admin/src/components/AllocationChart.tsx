@@ -51,7 +51,7 @@ export const AllocationChart = memo(function AllocationChart({ positions, cashKr
   }, [positions]);
 
   return (
-    <div className="bg-gray-800/60 backdrop-blur border border-gray-700/50 rounded-2xl p-5 h-full">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
       <h2 className="text-lg font-semibold text-white mb-2">포트폴리오 비중</h2>
       <div style={{ height: 240 }}>
         <ResponsiveContainer width="100%" height="100%">
