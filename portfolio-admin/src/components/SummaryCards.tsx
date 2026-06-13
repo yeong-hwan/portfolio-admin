@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }: Props) {
-  const us = summary.markets.us;
+  const principalAmount = summary.total_asset_amount - summary.evaluated_profit_amount;
   const profitColor =
     summary.evaluated_profit_amount >= 0 ? "text-emerald-400" : "text-rose-400";
   const rate = exchangeRate?.rate ?? null;
@@ -37,8 +37,8 @@ export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }
       />
       <Card
         label="투자 원금"
-        value={`₩${fmt(us.principal_amount)}`}
-        sub={`평가 ₩${fmt(us.evaluated_amount)}`}
+        value={`₩${fmt(principalAmount)}`}
+        sub={`평가 ₩${fmt(summary.total_asset_amount)}`}
       />
       <Card
         label="주문 가능"

@@ -44,7 +44,7 @@ export default function App() {
     removeSymbol,
   } = usePortfolio();
 
-  const cashKrw = snapshot?.summary.markets.us.orderable_amount_krw ?? 0;
+  const cashKrw = snapshot?.summary.orderable_amount_krw ?? 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
