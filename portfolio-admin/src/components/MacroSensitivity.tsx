@@ -148,7 +148,7 @@ export function MacroSensitivity() {
           <h2 className="text-lg font-semibold text-white">매크로 민감도</h2>
           {data && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {data.period.from} ~ {data.period.to} · {data.period.tradingDays}거래일
+              {data.period.from} ~ {data.period.to} · {data.period.tradingDays} 거래일
             </p>
           )}
         </div>

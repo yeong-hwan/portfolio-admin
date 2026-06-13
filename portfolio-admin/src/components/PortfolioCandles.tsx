@@ -97,7 +97,7 @@ export function PortfolioCandles() {
         <div>
           <h2 className="text-lg font-semibold text-white">포트폴리오 캔들</h2>
           {candles && (
-            <p className="text-xs text-gray-500 mt-0.5">{candles.length}거래일 · 매매이력 기반</p>
+            <p className="text-xs text-gray-500 mt-0.5">{candles.length} 거래일 · 매매이력 기반</p>
           )}
         </div>
         <div className="flex gap-1">

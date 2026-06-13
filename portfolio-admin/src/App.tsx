@@ -131,10 +131,11 @@ export default function App() {
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
-          <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            <PortfolioCandles />
+            <div className="flex flex-col gap-6">
+              <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
+              <PortfolioCandles />
+            </div>
             <PerformanceMetrics />
           </div>
 

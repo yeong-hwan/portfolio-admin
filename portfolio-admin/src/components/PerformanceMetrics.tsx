@@ -145,7 +145,7 @@ export function PerformanceMetrics() {
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
           {data && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {data.period.from} ~ {data.period.to} · {data.period.tradingDays}거래일 · vs {b?.symbol}
+              {data.period.from} ~ {data.period.to} · {data.period.tradingDays} 거래일 · vs {b?.symbol}
             </p>
           )}
         </div>

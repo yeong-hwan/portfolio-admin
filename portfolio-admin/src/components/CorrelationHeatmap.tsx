@@ -56,7 +56,7 @@ export function CorrelationHeatmap() {
           <h2 className="text-lg font-semibold text-white">수익률 상관관계</h2>
           {data && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {data.period.from} ~ {data.period.to} · {data.period.days}거래일 · {n}개 종목
+              {data.period.from} ~ {data.period.to} · {data.period.days} 거래일 · {n}개 종목
             </p>
           )}
         </div>
