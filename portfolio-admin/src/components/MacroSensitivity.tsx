@@ -107,21 +107,33 @@ function summary(factors: MacroFactor[]): string[] {
   return lines;
 }
 
-function Bar({ value, max }: { value: number; max: number }) {
-  const w = Math.min(Math.abs(value) / max, 1) * 100;
-  return (
-    <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${value >= 0 ? "bg-blue-500" : "bg-rose-500"}`}
-          style={{ width: `${w}%` }}
-        />
-      </div>
-      <span className={`text-xs font-mono w-10 text-right ${value >= 0 ? "text-blue-400" : "text-rose-400"}`}>
-        {value.toFixed(2)}
-      </span>
-    </div>
-  );
+function valueColor(tab: "beta" | "corr" | "alpha", f: MacroFactor): string {
+  if (tab === "beta") {
+    if (f.beta > 1.15) return "text-orange-400";
+    if (f.beta < 0.85) return "text-sky-400";
+    return "text-white";
+  }
+  if (tab === "corr") {
+    if (f.correlation > 0.5) return "text-blue-400";
+    if (f.correlation < -0.2) return "text-rose-400";
+    return "text-gray-300";
+  }
+  return f.alpha >= 0 ? "text-emerald-400" : "text-rose-400";
+}
+
+function valueLabel(tab: "beta" | "corr" | "alpha", f: MacroFactor): string {
+  if (tab === "beta") {
+    if (f.beta > 1.15) return "공격적";
+    if (f.beta < 0.85) return "방어적";
+    return "중립";
+  }
+  if (tab === "corr") {
+    if (f.correlation > 0.5) return "강한 동조";
+    if (f.correlation > 0.2) return "약한 동조";
+    if (f.correlation < -0.2) return "역방향";
+    return "무관";
+  }
+  return f.alpha >= 0 ? "초과수익" : "미달";
 }
 
 export function MacroSensitivity() {
@@ -137,8 +149,6 @@ export function MacroSensitivity() {
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  const maxBeta = Math.max(...(data?.factors.map(f => Math.abs(f.beta)) ?? [1]));
-  const maxAlpha = Math.max(...(data?.factors.map(f => Math.abs(f.alpha)) ?? [0.01]), 0.01);
   const TAB_LABELS = { beta: "베타 (β)", corr: "상관계수", alpha: "알파 (α)" };
 
   return (
@@ -193,25 +203,31 @@ export function MacroSensitivity() {
 
           {/* 지표별 행 */}
           <div className="flex-1 flex flex-col justify-between">
-            {data.factors.map(f => (
-              <div key={f.symbol} className="space-y-1 py-2 border-b border-white/[0.06] last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-32 shrink-0">
-                    <p className="text-sm text-white font-medium">{f.label}</p>
-                    <p className="text-[10px] text-gray-500">{f.symbol} · {pct(f.factorAnnualizedReturn)} CAGR</p>
+            {data.factors.map(f => {
+              const val = tab === "beta" ? f.beta : tab === "corr" ? f.correlation : f.alpha;
+              const color = valueColor(tab, f);
+              const label = valueLabel(tab, f);
+              return (
+                <div key={f.symbol} className="flex items-center gap-4 py-2.5 border-b border-white/[0.06] last:border-0">
+                  {/* 좌: 지표명 */}
+                  <div className="w-28 shrink-0">
+                    <p className="text-sm font-semibold text-white leading-tight">{f.label}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{f.symbol} · {pct(f.factorAnnualizedReturn)} CAGR</p>
                   </div>
-                  <div className="flex-1">
-                    <Bar
-                      value={tab === "beta" ? f.beta : tab === "corr" ? f.correlation : f.alpha}
-                      max={tab === "beta" ? maxBeta : tab === "corr" ? 1 : maxAlpha}
-                    />
+                  {/* 중: 해석 텍스트 */}
+                  <p className="flex-1 text-[11px] text-gray-400 leading-snug">
+                    {interpret(f, data.factors)}
+                  </p>
+                  {/* 우: 수치 + 레이블 */}
+                  <div className="shrink-0 text-right">
+                    <p className={`text-lg font-bold tabular-nums leading-tight ${color}`}>
+                      {val > 0 && tab !== "corr" ? "+" : ""}{val.toFixed(2)}
+                    </p>
+                    <p className={`text-[10px] font-medium ${color} opacity-70`}>{label}</p>
                   </div>
                 </div>
-                <p className="text-[11px] text-gray-500 pl-[8.5rem]">
-                  {interpret(f, data.factors)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-t border-white/[0.08] pt-3 flex gap-6 text-xs text-gray-500">

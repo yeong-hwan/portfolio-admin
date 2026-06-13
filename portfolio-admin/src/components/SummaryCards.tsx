@@ -28,25 +28,25 @@ export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }
   return (
     <div className="flex gap-4">
       {/* 메인 블록: 총자산 + 투자원금 + 평가손익 */}
-      <div className="flex-1 min-w-0 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl py-5 flex items-center divide-x divide-white/[0.08]">
-        <div className="px-7 shrink-0">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">총 자산</p>
-          <p className="text-xl lg:text-2xl font-bold text-white whitespace-nowrap">
+      <div className="flex-1 min-w-0 bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl py-4 flex items-stretch divide-x divide-white/[0.08]">
+        <div className="flex-1 min-w-0 px-5 flex flex-col justify-center">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">총 자산</p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold text-white truncate">
             ₩ {fmt(summary.total_asset_amount)}
           </p>
         </div>
-        <div className="px-7 shrink-0">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">투자 원금</p>
-          <p className="text-xl lg:text-2xl font-bold text-white whitespace-nowrap">
+        <div className="flex-1 min-w-0 px-5 flex flex-col justify-center">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">투자 원금</p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold text-white truncate">
             ₩ {fmt(principal)}
           </p>
         </div>
-        <div className="px-7 shrink-0">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-2">평가 손익</p>
-          <p className={`text-xl lg:text-2xl font-bold whitespace-nowrap ${profitColor}`}>
+        <div className="flex-1 min-w-0 px-5 flex flex-col justify-center">
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">평가 손익</p>
+          <p className={`text-sm sm:text-base lg:text-lg font-bold truncate ${profitColor}`}>
             {profitSign}₩ {fmt(profit)}
           </p>
-          <p className={`text-xs font-medium mt-1 ${profitColor}`}>
+          <p className={`text-xs font-medium mt-0.5 ${profitColor}`}>
             {profitSign}{pct(summary.profit_rate)}
           </p>
         </div>
