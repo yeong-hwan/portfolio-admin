@@ -98,7 +98,7 @@ export function PerformanceMetrics() {
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
       width: containerRef.current.clientWidth,
-      height: 260,
+      height: 200,
     });
 
     const portSeries = chart.addSeries(LineSeries, {
@@ -187,7 +187,7 @@ export function PerformanceMetrics() {
             <StatCard
               label="최대 낙폭"
               value={pct(p.mdd)}
-              sub={`${p.mddFrom} ~ ${p.mddTo}`}
+              sub={`${p.mddFrom.slice(2,7).replace('-','.')} ~ ${p.mddTo.slice(2,7).replace('-','.')}`}
               color="red"
             />
             <StatCard
@@ -200,8 +200,7 @@ export function PerformanceMetrics() {
 
           {/* SPY 비교 */}
           <div className="border-t border-white/[0.08] pt-4">
-            <p className="text-xs text-gray-500 mb-3 uppercase tracking-wide">vs SPY 비교</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <StatCard
                 label="알파"
                 value={pct(data.alpha)}
@@ -217,22 +216,6 @@ export function PerformanceMetrics() {
               <StatCard
                 label="상관계수"
                 value={data.correlation.toFixed(2)}
-                color="neutral"
-              />
-              <StatCard
-                label="SPY 수익률"
-                value={pct(b.totalReturn)}
-                color={b.totalReturn >= 0 ? "green" : "red"}
-              />
-              <StatCard
-                label="SPY 샤프"
-                value={b.sharpe.toFixed(2)}
-                color={sharpeColor(b.sharpe)}
-              />
-              <StatCard
-                label="SPY 변동성"
-                value={pct(b.volatility)}
-                sub="연환산 σ"
                 color="neutral"
               />
             </div>
