@@ -53,7 +53,6 @@ export async function tossGet<T>(
   path: string,
   opts: { accountSeq?: number; params?: Record<string, string> } = {}
 ): Promise<T> {
-  const token = await getAccessToken();
   const url = new URL(`${BASE_URL}${path}`);
   if (opts.params) {
     for (const [k, v] of Object.entries(opts.params)) {
@@ -61,20 +60,24 @@ export async function tossGet<T>(
     }
   }
 
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-  };
-  if (opts.accountSeq !== undefined) {
-    headers['X-Tossinvest-Account'] = String(opts.accountSeq);
-  }
-
   for (let attempt = 0; attempt < 3; attempt++) {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (opts.accountSeq !== undefined) {
+      headers['X-Tossinvest-Account'] = String(opts.accountSeq);
+    }
+
     const res = await fetch(url.toString(), { headers });
 
     if (res.status === 429) {
       const retryAfter = parseInt(res.headers.get('Retry-After') ?? '5', 10);
       const wait = (isNaN(retryAfter) ? 5 : retryAfter) * 1000;
       await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+
+    if (res.status === 401) {
+      tokenCache = null;
       continue;
     }
 
@@ -88,7 +91,7 @@ export async function tossGet<T>(
     return data.result;
   }
 
-  throw new Error(`Toss API ${path} failed after retries (rate limited)`);
+  throw new Error(`Toss API ${path} failed after retries`);
 }
 
 export function clearTokenCache(): void {
