@@ -3,3 +3,6 @@
 
 # Sensitive portfolio data (holdings, valuations, snapshots)
 portfolio-admin/data/
+
+node_modules/
+package-lock.json
