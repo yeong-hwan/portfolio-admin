@@ -2,6 +2,12 @@
 
 Toss 증권 OpenAPI 기반 개인 포트폴리오 대시보드.
 
+## 빠른 시작 (Claude Code / AI 에이전트)
+
+```bash
+claude "이 레포를 클론하고, .env.example을 .env로 복사한 뒤 Toss OpenAPI 키를 입력하라고 안내해줘. 그 다음 npm install && npm run dev 로 서버를 실행해줘."
+```
+
 ## 실행 방법
 
 ### 1. 의존성 설치
