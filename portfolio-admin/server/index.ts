@@ -8,6 +8,8 @@ import { computePortfolioCandles } from "./portfolio-candles.js";
 import { getPerformanceMetrics } from "./performance.js";
 import { getCorrelationMatrix } from "./correlation.js";
 import { getMacroSensitivity } from "./macro.js";
+import { getQuantData } from "./quant.js";
+import { getTqqqData } from "./tqqq-api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +22,10 @@ const SECTORS_FILE = path.join(DATA_DIR, "sectors.json");
 const LAST_SNAPSHOT_FILE = path.join(DATA_DIR, "last-snapshot.json");
 
 let candlesResultCache: { data: unknown; at: number } | null = null;
+let quantCache:  { data: unknown; at: number } | null = null;
+let tqqqCache:   { data: unknown; at: number } | null = null;
+const QUANT_TTL = 30 * 60 * 1000;
+const TQQQ_LOG_FILE = path.join(DATA_DIR, "tqqq-log.json");
 
 app.use(cors());
 app.use(express.json());
@@ -540,6 +546,68 @@ app.get("/api/macro-sensitivity", async (_req, res) => {
     const result = await getMacroSensitivity();
     macroCache = { data: result, at: Date.now() };
     res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: Quant dashboard (ARDS-X regime + NASDAQ movers)
+app.get("/api/quant", async (_req, res) => {
+  if (quantCache && Date.now() - quantCache.at < QUANT_TTL) {
+    return res.json(quantCache.data);
+  }
+  try {
+    const data = await getQuantData();
+    quantCache = { data, at: Date.now() };
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: TQQQ signal + indicators
+app.get("/api/tqqq", async (_req, res) => {
+  if (tqqqCache && Date.now() - tqqqCache.at < QUANT_TTL) {
+    return res.json(tqqqCache.data);
+  }
+  try {
+    const data = await getTqqqData();
+    tqqqCache = { data, at: Date.now() };
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: TQQQ investment log
+async function loadTqqqLog(): Promise<any[]> {
+  try { return JSON.parse(await fs.readFile(TQQQ_LOG_FILE, "utf-8")); } catch { return []; }
+}
+
+app.get("/api/tqqq/log", async (_req, res) => {
+  res.json(await loadTqqqLog());
+});
+
+app.post("/api/tqqq/log", async (req, res) => {
+  try {
+    const { date, tranche, amountKrw, note } = req.body;
+    const log = await loadTqqqLog();
+    const entry = { id: Date.now(), date, tranche, amountKrw, note };
+    log.push(entry);
+    await ensureDataDir();
+    await fs.writeFile(TQQQ_LOG_FILE, JSON.stringify(log, null, 2));
+    res.json(entry);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/tqqq/log/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const log = (await loadTqqqLog()).filter((e: any) => e.id !== id);
+    await fs.writeFile(TQQQ_LOG_FILE, JSON.stringify(log, null, 2));
+    res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

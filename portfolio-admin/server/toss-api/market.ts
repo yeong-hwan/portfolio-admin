@@ -100,3 +100,44 @@ export async function getHistoricalCandles(symbol: string, fromDate: string): Pr
   if (candles.length) await saveCandleCache({ symbol, fetchedUntil: today, candles });
   return candles;
 }
+
+// --- Technical indicator utilities ---
+
+export function calcRSI(closes: number[], period = 14): number {
+  if (closes.length < period + 1) return 50;
+  const slice = closes.slice(-(period + 1));
+  let gains = 0, losses = 0;
+  for (let i = 1; i < slice.length; i++) {
+    const diff = slice[i] - slice[i - 1];
+    if (diff > 0) gains += diff;
+    else losses -= diff;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  return 100 - 100 / (1 + avgGain / avgLoss);
+}
+
+export function calcWilliamsR(candles: DayCandle[], period = 14): number {
+  const slice = candles.slice(-period);
+  if (slice.length < period) return -50;
+  const highestHigh = Math.max(...slice.map(c => c.high));
+  const lowestLow = Math.min(...slice.map(c => c.low));
+  const lastClose = slice[slice.length - 1].close;
+  if (highestHigh === lowestLow) return -50;
+  return ((highestHigh - lastClose) / (highestHigh - lowestLow)) * -100;
+}
+
+export function calcSMA(closes: number[], period = 50): number {
+  const slice = closes.slice(-period);
+  if (slice.length < period) return closes[closes.length - 1] ?? 0;
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+export function calcDrawdown20d(candles: DayCandle[]): number {
+  const slice = candles.slice(-20);
+  if (!slice.length) return 0;
+  const high = Math.max(...slice.map(c => c.high));
+  const last = slice[slice.length - 1].close;
+  return high === 0 ? 0 : ((last - high) / high) * 100;
+}

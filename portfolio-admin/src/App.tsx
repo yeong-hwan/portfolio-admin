@@ -10,6 +10,8 @@ import { PortfolioCandles } from "./components/PortfolioCandles";
 import { PerformanceMetrics } from "./components/PerformanceMetrics";
 import { CorrelationHeatmap } from "./components/CorrelationHeatmap";
 import { MacroSensitivity } from "./components/MacroSensitivity";
+import { QuantDashboard } from "./components/QuantDashboard";
+import { TqqqManager } from "./components/TqqqManager";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -50,6 +52,7 @@ function CollapseSection({ title, children }: { title: string; children: React.R
 }
 
 export default function App() {
+  const [tab, setTab] = useState<'portfolio' | 'quant' | 'tqqq'>('portfolio');
   const {
     snapshot,
     exchangeRate,
@@ -85,6 +88,19 @@ export default function App() {
             <p className="text-xs text-gray-500 mt-0.5">
               v0.1.6
             </p>
+          </div>
+          <div className="flex gap-1 bg-gray-900/60 rounded-xl p-1 border border-white/[0.06]">
+            {(['portfolio', 'quant', 'tqqq'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  tab === t ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {t === 'portfolio' ? '포트폴리오' : t === 'quant' ? '퀀트' : 'TQQQ'}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-3">
             {lastRefresh && (
@@ -125,8 +141,10 @@ export default function App() {
         </div>
       )}
 
-      {/* Content */}
-      {snapshot ? (
+      {/* Tab content */}
+      {tab === 'quant' && <QuantDashboard />}
+      {tab === 'tqqq'  && <TqqqManager />}
+      {tab === 'portfolio' && (snapshot ? (
         <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
@@ -167,7 +185,7 @@ export default function App() {
             </p>
           </div>
         )
-      )}
+      ))}
     </div>
   );
 }
