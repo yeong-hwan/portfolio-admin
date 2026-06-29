@@ -1,6 +1,7 @@
 import { tossGet } from './client.js';
 import type { TossAccount, HoldingsResponse, HoldingItem, ExchangeRateResult } from './types.js';
 import type { AccountSummary, Position } from '../../src/types.js';
+import { computeHistoricalPrincipalKrw } from '../portfolio-candles.js';
 
 function num(s: string | null | undefined): number {
   if (!s) return 0;
@@ -82,15 +83,14 @@ function toPosition(item: HoldingItem, usdKrw: number): Position {
 
 export async function getSnapshot(): Promise<{ summary: AccountSummary; positions: Position[] }> {
   const accountSeq = await resolveAccountSeq();
-  const [holdings, usdKrw] = await Promise.all([
+  const [holdings, usdKrw, totalPurchaseKrw] = await Promise.all([
     getHoldings(accountSeq),
     getUsdKrwRate(),
+    computeHistoricalPrincipalKrw(),
   ]);
 
   const positions = holdings.items.map((item) => toPosition(item, usdKrw));
-
   const totalMarketValueKrw = positions.reduce((sum, p) => sum + p.market_value, 0);
-  const totalPurchaseKrw = positions.reduce((sum, p) => sum + p.average_price * p.quantity, 0);
 
   const summary: AccountSummary = {
     total_asset_amount: totalMarketValueKrw,

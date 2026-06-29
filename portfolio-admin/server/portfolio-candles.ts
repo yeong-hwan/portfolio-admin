@@ -126,6 +126,16 @@ function sanitizeCandleMap(
 
 // --- Core computation ---
 
+function lastIndexBefore(sortedDates: string[], date: string): number {
+  let lo = 0, hi = sortedDates.length - 1, idx = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (sortedDates[mid] < date) { idx = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  return idx;
+}
+
 function buildCandles(
   orders: FilledOrder[],
   candlesBySymbol: Record<string, Record<string, { open: number; high: number; low: number; close: number }>>,
@@ -135,8 +145,16 @@ function buildCandles(
   toDate: string,
   cashKrw = 0,
 ): PortfolioCandle[] {
+  // Pre-compute sanitized maps and sorted date arrays once per symbol
+  const sanitizedBySymbol: Record<string, ReturnType<typeof sanitizeCandleMap>> = {};
+  const sortedDatesBySymbol: Record<string, string[]> = {};
+  for (const symbol of Object.keys(symbolCurrency)) {
+    sanitizedBySymbol[symbol] = sanitizeCandleMap(candlesBySymbol[symbol] ?? {});
+    sortedDatesBySymbol[symbol] = Object.keys(sanitizedBySymbol[symbol]).sort();
+  }
+
   const tradingDays = [...new Set(
-    Object.keys(symbolCurrency).flatMap(s => Object.keys(candlesBySymbol[s] ?? {}))
+    Object.keys(symbolCurrency).flatMap(s => sortedDatesBySymbol[s])
   )].filter(d => d >= fromDate && d <= toDate).sort();
 
   const sortedOrders = [...orders].sort((a, b) => a.filledAt.localeCompare(b.filledAt));
@@ -164,12 +182,12 @@ function buildCandles(
     for (const symbol of held) {
       const qty = positions[symbol];
       const fx = symbolCurrency[symbol] === 'USD' ? usdKrw : 1;
-      const sanitized = sanitizeCandleMap(candlesBySymbol[symbol] ?? {});
+      const sanitized = sanitizedBySymbol[symbol];
       let c = sanitized[date];
       if (!c) {
-        const prior = Object.keys(sanitized).sort().filter(d => d < date).pop();
-        if (!prior) { skip = true; break; }
-        const p = sanitized[prior];
+        const priorIdx = lastIndexBefore(sortedDatesBySymbol[symbol], date);
+        if (priorIdx === -1) { skip = true; break; }
+        const p = sanitized[sortedDatesBySymbol[symbol][priorIdx]];
         c = { open: p.close, high: p.close, low: p.close, close: p.close };
       }
       open  += qty * c.open  * fx;
@@ -196,6 +214,54 @@ function applyOrder(positions: Record<string, number>, order: FilledOrder) {
 
 // Symbols excluded from candle computation (delisted, bad OTC data, etc.)
 const CANDLE_BLACKLIST = new Set(['GTIJF']);
+
+// --- Historical KRW principal ---
+
+// Computes actual KRW cost basis using exchange rates at the time of each order.
+// This avoids inflating the principal when USD/KRW has risen since purchase.
+export async function computeHistoricalPrincipalKrw(): Promise<number> {
+  const [ordersData, fxData] = await Promise.all([
+    fs.readFile(ORDERS_CACHE_FILE, 'utf-8').catch(() => null),
+    fs.readFile(FX_CACHE_FILE, 'utf-8').catch(() => null),
+  ]);
+  if (!ordersData) return 0;
+
+  const { orders } = JSON.parse(ordersData) as { fetchedUntil: string; orders: FilledOrder[] };
+  const fxRates: Record<string, number> = fxData ? (JSON.parse(fxData) as FxCache).rates : {};
+
+  const sorted = [...orders].sort((a, b) => a.filledAt.localeCompare(b.filledAt));
+
+  const avgKrwPerShare: Record<string, number> = {};
+  const heldQty: Record<string, number> = {};
+
+  for (const order of sorted) {
+    if (CANDLE_BLACKLIST.has(order.symbol)) continue;
+    const date = order.filledAt.split('T')[0];
+    const fx = order.currency === 'USD' ? nearestRate(fxRates, date) : 1;
+    const priceKrw = order.averageFilledPrice * fx;
+    const prevQty = heldQty[order.symbol] ?? 0;
+    const prevAvg = avgKrwPerShare[order.symbol] ?? 0;
+
+    if (order.side === 'BUY') {
+      const newQty = prevQty + order.filledQuantity;
+      avgKrwPerShare[order.symbol] = (prevQty * prevAvg + order.filledQuantity * priceKrw) / newQty;
+      heldQty[order.symbol] = newQty;
+    } else {
+      const newQty = prevQty - order.filledQuantity;
+      if (newQty <= 0.0001) {
+        delete avgKrwPerShare[order.symbol];
+        delete heldQty[order.symbol];
+      } else {
+        heldQty[order.symbol] = newQty;
+        // Average cost stays unchanged on sells (average cost method)
+      }
+    }
+  }
+
+  return Object.entries(heldQty).reduce((sum, [symbol, qty]) => {
+    return sum + qty * (avgKrwPerShare[symbol] ?? 0);
+  }, 0);
+}
 
 // --- Public API ---
 
