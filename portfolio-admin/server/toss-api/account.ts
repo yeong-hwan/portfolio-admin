@@ -83,19 +83,23 @@ function toPosition(item: HoldingItem, usdKrw: number): Position {
 
 export async function getSnapshot(): Promise<{ summary: AccountSummary; positions: Position[] }> {
   const accountSeq = await resolveAccountSeq();
-  const [holdings, usdKrw, totalPurchaseKrw] = await Promise.all([
+  const [holdings, usdKrw] = await Promise.all([
     getHoldings(accountSeq),
     getUsdKrwRate(),
-    computeHistoricalPrincipalKrw(),
   ]);
 
   const positions = holdings.items.map((item) => toPosition(item, usdKrw));
   const totalMarketValueKrw = positions.reduce((sum, p) => sum + p.market_value, 0);
 
+  // Toss가 자체 보관 환율로 산출한 수익률로 역산. Frankfurter API와의 환율 괴리를 제거.
+  const tossRate = num(holdings.profitLoss.rate);
+  const totalPurchaseKrw = tossRate > -1 ? totalMarketValueKrw / (1 + tossRate) : totalMarketValueKrw;
+  const evaluatedProfitKrw = totalMarketValueKrw - totalPurchaseKrw;
+
   const summary: AccountSummary = {
     total_asset_amount: totalMarketValueKrw,
-    evaluated_profit_amount: totalMarketValueKrw - totalPurchaseKrw,
-    profit_rate: num(holdings.profitLoss.rate),
+    evaluated_profit_amount: evaluatedProfitKrw,
+    profit_rate: tossRate,
     // TODO: Toss 공개 API에 현금 잔액 엔드포인트 없음 (14개 경로 전수 확인).
     //       파트너 API 또는 신규 엔드포인트 추가 시 여기서 반영.
     //       현재는 .env의 CASH_KRW 로 수동 설정.
