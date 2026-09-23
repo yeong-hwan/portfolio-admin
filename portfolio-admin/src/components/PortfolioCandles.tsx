@@ -62,6 +62,8 @@ export function PortfolioCandles() {
     if (!filtered.length) return;
 
     const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height: 420,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#9ca3af",
@@ -74,7 +76,6 @@ export function PortfolioCandles() {
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
-      autoSize: true,
     });
 
     const series = chart.addSeries(CandlestickSeries, {
@@ -87,7 +88,6 @@ export function PortfolioCandles() {
       priceFormat: {
         type: "custom",
         formatter: (price: number) => formatK(price),
-        minMove: 100000,
       },
     });
 
@@ -107,7 +107,7 @@ export function PortfolioCandles() {
       setTooltip({ date: param.time as string, open: d.open, high: d.high, low: d.low, close: d.close });
     });
 
-    return () => {};
+    return () => { chartRef.current?.remove(); chartRef.current = null; };
   }, [candles, range]);
 
   return (
