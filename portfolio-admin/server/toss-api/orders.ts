@@ -8,6 +8,10 @@ export interface FilledOrder {
   averageFilledPrice: number;
   currency: 'KRW' | 'USD';
   filledAt: string;
+  // 아래 필드는 캐시 마이그레이션 전 데이터에는 없을 수 있음 (qty×price로 폴백)
+  filledAmount?: number;
+  commission?: number;
+  tax?: number;
 }
 
 interface TossOrdersResponse {
@@ -20,6 +24,9 @@ interface TossOrdersResponse {
     execution: {
       filledQuantity: string;
       averageFilledPrice: string | null;
+      filledAmount: string | null;
+      commission: string | null;
+      tax: string | null;
       filledAt: string | null;
     };
   }>;
@@ -47,6 +54,9 @@ export async function getAllFilledOrders(accountSeq: number): Promise<FilledOrde
           averageFilledPrice: parseFloat(order.execution.averageFilledPrice ?? '0'),
           currency: order.currency,
           filledAt: order.execution.filledAt,
+          filledAmount: parseFloat(order.execution.filledAmount ?? '0') || undefined,
+          commission: parseFloat(order.execution.commission ?? '0') || 0,
+          tax: parseFloat(order.execution.tax ?? '0') || 0,
         });
       }
     }

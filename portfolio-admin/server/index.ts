@@ -10,6 +10,11 @@ import { getCorrelationMatrix } from "./correlation.js";
 import { getMacroSensitivity } from "./macro.js";
 import { getQuantData } from "./quant.js";
 import { getTqqqData } from "./tqqq-api.js";
+import { computeCashflow } from "./cashflow.js";
+import { getFxCandles, type FxInterval } from "./fx-candles.js";
+import { syncSplits } from "./splits.js";
+import { computeTaxSummary, simulateSale } from "./tax.js";
+import { computeDividendIncome } from "./dividends.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,11 +26,58 @@ const CHECKPOINTS_FILE = path.join(DATA_DIR, "checkpoints.json");
 const SECTORS_FILE = path.join(DATA_DIR, "sectors.json");
 const LAST_SNAPSHOT_FILE = path.join(DATA_DIR, "last-snapshot.json");
 
-let candlesResultCache: { data: unknown; at: number } | null = null;
-let quantCache:  { data: unknown; at: number } | null = null;
-let tqqqCache:   { data: unknown; at: number } | null = null;
 const QUANT_TTL = 30 * 60 * 1000;
 const TQQQ_LOG_FILE = path.join(DATA_DIR, "tqqq-log.json");
+const COMPUTED_DIR = path.join(DATA_DIR, "computed");
+
+// --- 계산 결과 캐시 (메모리 + 디스크 영속화) ---
+// 리플레이/외부 API 기반 계산 결과를 디스크에 남겨 서버 재시작 후에도
+// TTL 이내면 재계산 없이 즉시 응답한다. TTL 경과 시 전체 재계산(리플레이)으로 갱신.
+interface ComputedEntry { at: number; data: unknown }
+
+function makeCached(name: string, ttlMs: number, compute: () => Promise<unknown>) {
+  let mem: ComputedEntry | null = null;
+  let diskChecked = false;
+  const file = path.join(COMPUTED_DIR, `${name}.json`);
+
+  async function loadDisk(): Promise<void> {
+    if (diskChecked) return;
+    diskChecked = true;
+    try {
+      const entry = JSON.parse(await fs.readFile(file, "utf-8")) as ComputedEntry;
+      if (!mem || entry.at > mem.at) mem = entry;
+    } catch {
+      // 디스크 캐시 없음
+    }
+  }
+
+  async function refresh(): Promise<unknown> {
+    const data = await compute();
+    mem = { at: Date.now(), data };
+    fs.mkdir(COMPUTED_DIR, { recursive: true })
+      .then(() => fs.writeFile(file, JSON.stringify(mem)))
+      .catch(() => {});
+    return data;
+  }
+
+  async function get(): Promise<unknown> {
+    if (mem && Date.now() - mem.at < ttlMs) return mem.data;
+    await loadDisk();
+    if (mem && Date.now() - mem.at < ttlMs) return mem.data;
+    return refresh();
+  }
+
+  return {
+    refresh,
+    handler: async (_req: express.Request, res: express.Response) => {
+      try {
+        res.json(await get());
+      } catch (e: any) {
+        res.status(500).json({ error: e.message });
+      }
+    },
+  };
+}
 
 app.use(cors());
 app.use(express.json());
@@ -139,8 +191,9 @@ app.get("/api/snapshot", async (_req, res) => {
       positions,
       timestamp: new Date().toISOString(),
     };
-    await saveLastSnapshot(snapshot);
     res.json({ ...snapshot, stale: false });
+    // 응답 후 백그라운드로 캐시 저장 — 디스크 쓰기를 응답 경로에서 제거
+    saveLastSnapshot(snapshot).catch(() => {});
   } catch (e: any) {
     const cached = await loadLastSnapshot();
     if (cached) {
@@ -480,104 +533,45 @@ app.delete("/api/sectors/:name/symbols/:symbol", async (req, res) => {
   }
 });
 
-// API: Portfolio performance metrics (Sharpe, MDD, alpha/beta vs SPY)
-app.get("/api/performance-metrics", async (_req, res) => {
-  try {
-    const { summary } = await getSnapshot();
-    const cashKrw = summary.orderable_amount_krw ?? 0;
-    const metrics = await getPerformanceMetrics(cashKrw);
-    res.json(metrics);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+// API: Portfolio performance metrics (SPY 적립 시뮬 대비, 주문 전체 리플레이)
+const perfCached = makeCached("performance-metrics", 10 * 60 * 1000, () => getPerformanceMetrics());
+app.get("/api/performance-metrics", perfCached.handler);
 
 // API: Portfolio candlestick (order history + historical OHLC)
-// Cached 5 min in-memory — recomputation reads ~100 symbol files + Toss API
-app.get("/api/portfolio-candles", async (_req, res) => {
-  if (candlesResultCache && Date.now() - candlesResultCache.at < 5 * 60 * 1000) {
-    return res.json(candlesResultCache.data);
-  }
-  try {
-    const cashKrw = parseInt(process.env.CASH_KRW ?? "0", 10);
-    const candles = await computePortfolioCandles(cashKrw);
-    candlesResultCache = { data: candles, at: Date.now() };
-    res.json(candles);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+const candlesCached = makeCached("portfolio-candles", 5 * 60 * 1000, () =>
+  computePortfolioCandles(parseInt(process.env.CASH_KRW ?? "0", 10))
+);
+app.get("/api/portfolio-candles", candlesCached.handler);
 
 // API: Correlation matrix for current positions (1-year daily returns)
 // Derives current positions from orders-cache.json to avoid Toss API dependency.
-let correlationCache: { data: unknown; at: number } | null = null;
-app.get("/api/correlation", async (_req, res) => {
-  if (correlationCache && Date.now() - correlationCache.at < 60 * 60 * 1000) {
-    return res.json(correlationCache.data);
-  }
-  try {
-    const ordersRaw = JSON.parse(await fs.readFile(path.join(DATA_DIR, "orders-cache.json"), "utf-8"));
-    const BLACKLIST = new Set(["GTIJF"]);
-    const pos: Record<string, number> = {};
-    for (const o of (ordersRaw.orders as any[]).sort((a: any, b: any) => a.filledAt.localeCompare(b.filledAt))) {
-      if (BLACKLIST.has(o.symbol)) continue;
-      if (o.side === "BUY") pos[o.symbol] = (pos[o.symbol] ?? 0) + o.filledQuantity;
-      else {
-        pos[o.symbol] = (pos[o.symbol] ?? 0) - o.filledQuantity;
-        if (pos[o.symbol] <= 0.0001) delete pos[o.symbol];
-      }
+const correlationCached = makeCached("correlation", 60 * 60 * 1000, async () => {
+  const ordersRaw = JSON.parse(await fs.readFile(path.join(DATA_DIR, "orders-cache.json"), "utf-8"));
+  const BLACKLIST = new Set(["GTIJF"]);
+  const pos: Record<string, number> = {};
+  for (const o of (ordersRaw.orders as any[]).sort((a: any, b: any) => a.filledAt.localeCompare(b.filledAt))) {
+    if (BLACKLIST.has(o.symbol)) continue;
+    if (o.side === "BUY") pos[o.symbol] = (pos[o.symbol] ?? 0) + o.filledQuantity;
+    else {
+      pos[o.symbol] = (pos[o.symbol] ?? 0) - o.filledQuantity;
+      if (pos[o.symbol] <= 0.0001) delete pos[o.symbol];
     }
-    const symbols = Object.keys(pos);
-    const result = await getCorrelationMatrix(symbols);
-    correlationCache = { data: result, at: Date.now() };
-    res.json(result);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
   }
+  return getCorrelationMatrix(Object.keys(pos));
 });
+app.get("/api/correlation", correlationCached.handler);
 
 // API: Macro sensitivity (beta/correlation vs SPY, TLT, GLD, etc.)
-let macroCache: { data: unknown; at: number } | null = null;
-app.get("/api/macro-sensitivity", async (_req, res) => {
-  if (macroCache && Date.now() - macroCache.at < 60 * 60 * 1000) {
-    return res.json(macroCache.data);
-  }
-  try {
-    const result = await getMacroSensitivity();
-    macroCache = { data: result, at: Date.now() };
-    res.json(result);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+const macroCached = makeCached("macro-sensitivity", 60 * 60 * 1000, () => getMacroSensitivity());
+app.get("/api/macro-sensitivity", macroCached.handler);
 
 // API: Quant dashboard (ARDS-X regime + NASDAQ movers)
-app.get("/api/quant", async (_req, res) => {
-  if (quantCache && Date.now() - quantCache.at < QUANT_TTL) {
-    return res.json(quantCache.data);
-  }
-  try {
-    const data = await getQuantData();
-    quantCache = { data, at: Date.now() };
-    res.json(data);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+const quantCached = makeCached("quant", QUANT_TTL, () => getQuantData());
+app.get("/api/quant", quantCached.handler);
 
 // API: TQQQ signal + indicators
-app.get("/api/tqqq", async (_req, res) => {
-  if (tqqqCache && Date.now() - tqqqCache.at < QUANT_TTL) {
-    return res.json(tqqqCache.data);
-  }
-  try {
-    const data = await getTqqqData();
-    tqqqCache = { data, at: Date.now() };
-    res.json(data);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
+const tqqqCached = makeCached("tqqq", QUANT_TTL, () => getTqqqData());
+app.get("/api/tqqq", tqqqCached.handler);
 
 // API: TQQQ investment log
 async function loadTqqqLog(): Promise<any[]> {
@@ -608,6 +602,81 @@ app.delete("/api/tqqq/log/:id", async (req, res) => {
     const log = (await loadTqqqLog()).filter((e: any) => e.id !== id);
     await fs.writeFile(TQQQ_LOG_FILE, JSON.stringify(log, null, 2));
     res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: USD/KRW daily history from fx-rates cache (Frankfurter, 캔들 계산 시 갱신됨)
+app.get("/api/fx-history", async (_req, res) => {
+  try {
+    const raw = JSON.parse(await fs.readFile(path.join(DATA_DIR, "fx-rates.json"), "utf-8"));
+    const series = Object.entries(raw.rates as Record<string, number>)
+      .map(([date, rate]) => ({ date, rate }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    res.json(series);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: USD/KRW OHLC candles (Yahoo KRW=X, 실패 시 fx-rates 합성 폴백)
+const fxCandlesCached: Record<FxInterval, ReturnType<typeof makeCached>> = {
+  "1d": makeCached("fx-candles-1d", QUANT_TTL, () => getFxCandles("1d")),
+  "1wk": makeCached("fx-candles-1wk", QUANT_TTL, () => getFxCandles("1wk")),
+};
+app.get("/api/fx-candles", (req, res) => {
+  const interval: FxInterval = req.query.interval === "1wk" ? "1wk" : "1d";
+  return fxCandlesCached[interval].handler(req, res);
+});
+
+// API: Cash flow reconstruction from order history (추정 순투입 vs 재투자 구분)
+const cashflowCached = makeCached("cashflow", QUANT_TTL, () => computeCashflow());
+app.get("/api/cashflow", cashflowCached.handler);
+
+// API: Realized P&L + 양도세 추정 (FIFO, 체결일 환율)
+const taxCached = makeCached("tax", QUANT_TTL, () => computeTaxSummary());
+app.get("/api/tax", taxCached.handler);
+
+// API: 매도 세금 시뮬레이션 — "이 종목 X주 팔면 세금이 얼마나 변하나"
+app.get("/api/tax/simulate", async (req, res) => {
+  try {
+    const symbol = String(req.query.symbol ?? "");
+    const qty = parseFloat(String(req.query.qty ?? "0"));
+    const priceKrw = parseFloat(String(req.query.priceKrw ?? "0"));
+    if (!symbol || !(qty > 0) || !(priceKrw > 0)) {
+      return res.status(400).json({ error: "symbol, qty, priceKrw required" });
+    }
+    const result = await simulateSale(symbol, qty, priceKrw);
+    if (!result) return res.status(404).json({ error: "해당 종목의 보유 로트가 없습니다" });
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// API: 배당 인컴 추정 (배당락일 보유수량 × Yahoo 배당 이벤트)
+const dividendsCached = makeCached("dividends", 60 * 60 * 1000, () => computeDividendIncome());
+app.get("/api/dividends", dividendsCached.handler);
+
+// API: 목표 설정 (1억 모으기 등)
+const GOAL_FILE = path.join(DATA_DIR, "goal.json");
+const DEFAULT_GOAL = { targetKrw: 100_000_000, monthlySavingKrw: 4_000_000 };
+app.get("/api/goal", async (_req, res) => {
+  try {
+    res.json({ ...DEFAULT_GOAL, ...JSON.parse(await fs.readFile(GOAL_FILE, "utf-8")) });
+  } catch {
+    res.json(DEFAULT_GOAL);
+  }
+});
+app.put("/api/goal", async (req, res) => {
+  try {
+    const { targetKrw, monthlySavingKrw } = req.body;
+    if (!targetKrw || targetKrw <= 0) return res.status(400).json({ error: "targetKrw required" });
+    const goal = { targetKrw, monthlySavingKrw: monthlySavingKrw ?? 0 };
+    await ensureDataDir();
+    await fs.writeFile(GOAL_FILE, JSON.stringify(goal, null, 2));
+    res.json(goal);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -644,15 +713,25 @@ app.get("/{*splat}", (_req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Portfolio admin API running on http://localhost:${PORT}`);
   saveDailyCheckpoint();
-  // 서버 시작 후 캔들 캐시 워밍업 — 첫 사용자 요청을 즉시 반환하기 위해
+  // 서버 시작 후 캐시 워밍업 — 디스크 캐시가 TTL을 지났을 때만 실제 재계산됨
   setTimeout(async () => {
     try {
-      const cashKrw = parseInt(process.env.CASH_KRW ?? "0", 10);
-      const candles = await computePortfolioCandles(cashKrw);
-      candlesResultCache = { data: candles, at: Date.now() };
+      await syncSplits();
+      console.log("[warmup] splits synced");
+    } catch (e) {
+      console.error("[warmup] splits sync failed:", e);
+    }
+    try {
+      const candles = (await candlesCached.refresh()) as unknown[];
       console.log(`[warmup] ${candles.length} portfolio candles cached`);
     } catch (e) {
       console.error("[warmup] candles failed:", e);
+    }
+    try {
+      await perfCached.refresh();
+      console.log("[warmup] performance metrics cached");
+    } catch (e) {
+      console.error("[warmup] performance metrics failed:", e);
     }
   }, 500);
 });

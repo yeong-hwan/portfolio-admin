@@ -12,6 +12,14 @@ import { CorrelationHeatmap } from "./components/CorrelationHeatmap";
 import { MacroSensitivity } from "./components/MacroSensitivity";
 import { QuantDashboard } from "./components/QuantDashboard";
 import { TqqqManager } from "./components/TqqqManager";
+import { CashflowCard } from "./components/CashflowCard";
+import { FxChart } from "./components/FxChart";
+import { GoalCard } from "./components/GoalCard";
+import { TaxCard } from "./components/TaxCard";
+import { MonthlyHeatmap } from "./components/MonthlyHeatmap";
+import { ReturnDecomposition } from "./components/ReturnDecomposition";
+import { DrawdownChart } from "./components/DrawdownChart";
+import { DividendCard } from "./components/DividendCard";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -51,8 +59,16 @@ function CollapseSection({ title, children }: { title: string; children: React.R
   );
 }
 
+type Tab = 'portfolio' | 'quant' | 'tqqq';
+
 export default function App() {
-  const [tab, setTab] = useState<'portfolio' | 'quant' | 'tqqq'>('portfolio');
+  const [tab, setTab] = useState<Tab>('portfolio');
+  // 방문한 탭은 마운트를 유지해서 탭 전환 시 재fetch/차트 재생성을 방지
+  const [visited, setVisited] = useState<Set<Tab>>(() => new Set<Tab>(['portfolio']));
+  const selectTab = (t: Tab) => {
+    setTab(t);
+    setVisited(prev => (prev.has(t) ? prev : new Set(prev).add(t)));
+  };
   const {
     snapshot,
     exchangeRate,
@@ -93,7 +109,7 @@ export default function App() {
             {(['portfolio', 'quant', 'tqqq'] as const).map(t => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => selectTab(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   tab === t ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
                 }`}
@@ -141,10 +157,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Tab content */}
-      {tab === 'quant' && <QuantDashboard />}
-      {tab === 'tqqq'  && <TqqqManager />}
-      {tab === 'portfolio' && (snapshot ? (
+      {/* Tab content — 방문한 탭은 hidden으로 유지 */}
+      {visited.has('quant') && <div hidden={tab !== 'quant'}><QuantDashboard /></div>}
+      {visited.has('tqqq') && <div hidden={tab !== 'tqqq'}><TqqqManager /></div>}
+      <div hidden={tab !== 'portfolio'}>
+      {snapshot ? (
         <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
@@ -152,10 +169,28 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <div className="flex flex-col gap-6">
               <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
+              <GoalCard totalAsset={snapshot.summary.total_asset_amount} />
               <PortfolioCandles />
             </div>
             <PerformanceMetrics />
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
+            <FxChart />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <MonthlyHeatmap />
+            <ReturnDecomposition />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <DrawdownChart />
+            <DividendCard />
+          </div>
+
+          <TaxCard positions={snapshot.positions} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <MacroSensitivity />
@@ -185,7 +220,8 @@ export default function App() {
             </p>
           </div>
         )
-      ))}
+      )}
+      </div>
     </div>
   );
 }

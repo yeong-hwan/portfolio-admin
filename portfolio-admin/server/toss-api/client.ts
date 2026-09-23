@@ -42,11 +42,19 @@ async function fetchToken(): Promise<string> {
   return data.access_token;
 }
 
+// 동시 요청이 각자 토큰을 발급하지 않도록 진행 중인 발급 요청을 공유
+let inflightToken: Promise<string> | null = null;
+
 async function getAccessToken(): Promise<string> {
   if (tokenCache && tokenCache.expiresAt > Date.now()) {
     return tokenCache.accessToken;
   }
-  return fetchToken();
+  if (!inflightToken) {
+    inflightToken = fetchToken().finally(() => {
+      inflightToken = null;
+    });
+  }
+  return inflightToken;
 }
 
 export async function tossGet<T>(

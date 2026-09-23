@@ -9,6 +9,7 @@ interface PortfolioStats {
   mdd: number;
   mddFrom: string;
   mddTo: string;
+  finalValueKrw: number;
 }
 
 interface BenchmarkStats {
@@ -17,26 +18,43 @@ interface BenchmarkStats {
   annualizedReturn: number;
   volatility: number;
   sharpe: number;
+  mdd: number;
+  finalValueKrw: number;
 }
 
 interface SeriesPoint {
   date: string;
   portfolio: number;
-  benchmark: number | null;
+  benchmark: number;
 }
 
 interface Metrics {
   period: { from: string; to: string; tradingDays: number };
+  deposits: { totalKrw: number; count: number };
   portfolio: PortfolioStats;
   benchmark: BenchmarkStats;
   alpha: number;
   beta: number;
   correlation: number;
+  excess: {
+    totalReturn: number;
+    valueDiffKrw: number;
+    informationRatio: number;
+  };
   series: SeriesPoint[];
 }
 
 function pct(v: number, digits = 1) {
   return (v * 100).toFixed(digits) + "%";
+}
+
+function pctPoint(v: number, digits = 1) {
+  return (v >= 0 ? "+" : "") + (v * 100).toFixed(digits) + "%p";
+}
+
+function fmtMan(v: number) {
+  const man = Math.round(v / 10000);
+  return (man >= 0 ? "" : "-") + Math.abs(man).toLocaleString("ko-KR") + "만";
 }
 
 function StatCard({
@@ -101,25 +119,28 @@ export function PerformanceMetrics() {
       height: 220,
     });
 
+    const krwFormat = {
+      type: "custom" as const,
+      formatter: (v: number) => fmtMan(v),
+      minMove: 10000,
+    };
     const portSeries = chart.addSeries(LineSeries, {
       color: "#60a5fa",
       lineWidth: 2,
-      priceFormat: { type: "custom", formatter: (v: number) => v.toFixed(1), minMove: 0.1 },
+      priceFormat: krwFormat,
     });
     const spySeries = chart.addSeries(LineSeries, {
       color: "#6b7280",
       lineWidth: 2,
       lineStyle: 2, // dashed
-      priceFormat: { type: "custom", formatter: (v: number) => v.toFixed(1), minMove: 0.1 },
+      priceFormat: krwFormat,
     });
 
     portSeries.setData(
       data.series.map((p) => ({ time: p.date as any, value: p.portfolio }))
     );
     spySeries.setData(
-      data.series
-        .filter((p) => p.benchmark != null)
-        .map((p) => ({ time: p.date as any, value: p.benchmark! }))
+      data.series.map((p) => ({ time: p.date as any, value: p.benchmark }))
     );
 
     chart.timeScale().fitContent();
@@ -145,7 +166,7 @@ export function PerformanceMetrics() {
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
           {data && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {data.period.from} ~ {data.period.to} · {data.period.tradingDays} 거래일 · vs {b?.symbol}
+              {data.period.from} ~ {data.period.to} · 실투입 {fmtMan(data.deposits.totalKrw)} · 동일 입금 흐름 {b?.symbol} 적립 시뮬 대비
             </p>
           )}
         </div>
@@ -165,32 +186,42 @@ export function PerformanceMetrics() {
 
       {!loading && !error && p && b && (
         <>
-          {/* 포트폴리오 핵심 지표 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* 포트폴리오 핵심 지표 — SPY 대비 상대 성과 중심 */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <StatCard
-              label="총 수익률"
-              value={pct(p.totalReturn)}
-              color={p.totalReturn >= 0 ? "green" : "red"}
+              label="실투입 대비 수익률"
+              value={pctPoint(data.excess.totalReturn)}
+              sub={`내 ${pct(p.totalReturn)} · SPY 적립 ${pct(b.totalReturn)}`}
+              color={data.excess.totalReturn >= 0 ? "green" : "red"}
             />
             <StatCard
-              label="연환산 수익률 (CAGR)"
-              value={pct(p.annualizedReturn)}
-              color={p.annualizedReturn >= 0 ? "green" : "red"}
+              label="가치 차이 (vs SPY 적립)"
+              value={fmtMan(data.excess.valueDiffKrw)}
+              sub={`내 ${fmtMan(p.finalValueKrw)} · SPY 적립 ${fmtMan(b.finalValueKrw)}`}
+              color={data.excess.valueDiffKrw >= 0 ? "green" : "red"}
             />
             <StatCard
-              label="샤프 비율 (RF 4.5%)"
+              label="샤프 (채권 대비 · RF 4.5%)"
               value={p.sharpe.toFixed(2)}
+              sub={`SPY 적립 ${b.sharpe.toFixed(2)}`}
               color={sharpeColor(p.sharpe)}
+            />
+            <StatCard
+              label="샤프 (SPY 대비 · IR)"
+              value={data.excess.informationRatio.toFixed(2)}
+              sub="정보비율: 초과수익 ÷ 추적오차"
+              color={data.excess.informationRatio >= 0.5 ? "green" : data.excess.informationRatio >= 0 ? "neutral" : "red"}
             />
             <StatCard
               label="최대 낙폭"
               value={pct(p.mdd)}
-              sub={`${p.mddFrom.slice(2,7).replace('-','.')} ~ ${p.mddTo.slice(2,7).replace('-','.')}`}
+              sub={`${p.mddFrom.slice(2,7).replace('-','.')} ~ ${p.mddTo.slice(2,7).replace('-','.')} · SPY 적립 ${pct(b.mdd)}`}
               color="red"
             />
             <StatCard
               label="변동성 (연환산 σ)"
               value={pct(p.volatility)}
+              sub={`SPY 적립 ${pct(b.volatility)}`}
               color="neutral"
             />
           </div>
@@ -219,13 +250,13 @@ export function PerformanceMetrics() {
           {/* 상대 성과 차트 */}
           <div className="border-t border-white/[0.08] pt-4">
             <div className="flex items-center gap-4 mb-3">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">상대 성과 (기준=100)</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">자산 가치 비교 (₩ · 동일 입금)</p>
               <div className="flex items-center gap-3 ml-auto">
                 <span className="flex items-center gap-1.5 text-xs text-gray-400">
                   <span className="w-4 h-0.5 bg-blue-400 inline-block" />내 포트폴리오
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className="w-4 h-0.5 bg-gray-500 inline-block rounded" style={{ borderTop: "2px dashed #6b7280" }} />SPY
+                  <span className="w-4 h-0.5 bg-gray-500 inline-block rounded" style={{ borderTop: "2px dashed #6b7280" }} />SPY 적립 시뮬
                 </span>
               </div>
             </div>

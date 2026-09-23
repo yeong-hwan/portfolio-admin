@@ -36,7 +36,7 @@ export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }
           </p>
         </div>
         <div className="flex-1 min-w-0 px-5 flex flex-col justify-center">
-          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">투자 원금</p>
+          <p className="text-xs text-gray-400 uppercase tracking-widest mb-1.5">매입 금액</p>
           <p className="text-sm sm:text-base lg:text-lg font-bold text-white truncate">
             ₩ {fmt(principal)}
           </p>

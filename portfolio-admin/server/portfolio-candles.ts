@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { getAllFilledOrders, FilledOrder } from './toss-api/orders.js';
 import { getHistoricalCandles } from './toss-api/market.js';
 import { resolveAccountSeq } from './toss-api/account.js';
+import { loadSplits, adjustOrdersForSplits } from './splits.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -271,7 +272,11 @@ export async function computePortfolioCandles(cashKrw = 0): Promise<PortfolioCan
     getOrders(accountSeq),
     loadCandlesCache(),
   ]);
-  const orders = rawOrders.filter(o => !CANDLE_BLACKLIST.has(o.symbol));
+  // 분할/역분할 이후 수량 기준으로 보정 (캔들 가격은 분할 조정가이므로)
+  const orders = adjustOrdersForSplits(
+    rawOrders.filter(o => !CANDLE_BLACKLIST.has(o.symbol)),
+    await loadSplits(),
+  );
   if (!orders.length) return [];
 
   const today = new Date().toISOString().split('T')[0];
