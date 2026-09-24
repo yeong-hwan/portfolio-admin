@@ -20,6 +20,7 @@ import { MonthlyHeatmap } from "./components/MonthlyHeatmap";
 import { ReturnDecomposition } from "./components/ReturnDecomposition";
 import { DrawdownChart } from "./components/DrawdownChart";
 import { DividendCard } from "./components/DividendCard";
+import { InflationCompass } from "./components/InflationCompass";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -174,6 +175,8 @@ export default function App() {
             </div>
             <PerformanceMetrics />
           </div>
+
+          <InflationCompass />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />

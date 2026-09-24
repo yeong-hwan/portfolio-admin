@@ -15,6 +15,7 @@ import { getFxCandles, type FxInterval } from "./fx-candles.js";
 import { syncSplits } from "./splits.js";
 import { computeTaxSummary, simulateSale } from "./tax.js";
 import { computeDividendIncome } from "./dividends.js";
+import { computeInflationCompass } from "./inflation-compass.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -568,6 +569,10 @@ app.get("/api/macro-sensitivity", macroCached.handler);
 // API: Quant dashboard (ARDS-X regime + NASDAQ movers)
 const quantCached = makeCached("quant", QUANT_TTL, () => getQuantData());
 app.get("/api/quant", quantCached.handler);
+
+// API: Inflation Compass 국면 신호 (SPY 200MA × T5YIE 기반 4국면)
+const compassCached = makeCached("inflation-compass", 60 * 60 * 1000, () => computeInflationCompass());
+app.get("/api/inflation-compass", compassCached.handler);
 
 // API: TQQQ signal + indicators
 const tqqqCached = makeCached("tqqq", QUANT_TTL, () => getTqqqData());
