@@ -16,6 +16,7 @@ import { syncSplits } from "./splits.js";
 import { computeTaxSummary, simulateSale } from "./tax.js";
 import { computeDividendIncome } from "./dividends.js";
 import { computeInflationCompass } from "./inflation-compass.js";
+import { computeMacroEnv, computeFlows, computeGeopolitics } from "./market-env.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -574,6 +575,14 @@ app.get("/api/quant", quantCached.handler);
 const compassCached = makeCached("inflation-compass", 60 * 60 * 1000, () => computeInflationCompass());
 app.get("/api/inflation-compass", compassCached.handler);
 
+// API: 시장 환경 — 매크로 / 수급 / 지정학
+const macroEnvCached = makeCached("market-env-macro", 60 * 60 * 1000, () => computeMacroEnv());
+app.get("/api/market-env/macro", macroEnvCached.handler);
+const flowsCached = makeCached("market-env-flows", 60 * 60 * 1000, () => computeFlows());
+app.get("/api/market-env/flows", flowsCached.handler);
+const geoCached = makeCached("market-env-geo", 6 * 60 * 60 * 1000, () => computeGeopolitics());
+app.get("/api/market-env/geo", geoCached.handler);
+
 // API: TQQQ signal + indicators
 const tqqqCached = makeCached("tqqq", QUANT_TTL, () => getTqqqData());
 app.get("/api/tqqq", tqqqCached.handler);
@@ -663,6 +672,37 @@ app.get("/api/tax/simulate", async (req, res) => {
 // API: 배당 인컴 추정 (배당락일 보유수량 × Yahoo 배당 이벤트)
 const dividendsCached = makeCached("dividends", 60 * 60 * 1000, () => computeDividendIncome());
 app.get("/api/dividends", dividendsCached.handler);
+
+// API: 밴드 리밸런싱 설정 (버킷·목표비중·밴드)
+const REBALANCE_FILE = path.join(DATA_DIR, "rebalance.json");
+// 기본 버킷: 2026-09 보유 종목 기준 초기 분류. UI에서 수정 가능.
+const DEFAULT_REBALANCE = {
+  buckets: [
+    { name: "코어 (지수·배당)", target: 35, band: 0.25, symbols: ["SCHD", "QLD", "SMH", "GOOG", "ULTY", "TQQQ", "KMLM"] },
+    { name: "성장 개별주", target: 30, band: 0.25, symbols: ["AMD", "PLTR", "PTIR", "HOOD", "DNA", "HIMS", "IONQ", "NVO", "RXRX", "FIG", "DRAM"] },
+    { name: "크립토 연동", target: 15, band: 0.35, symbols: ["IREN", "ETHU", "BITU", "BITO", "BMNR", "CRCL", "CONL", "COIN"] },
+    { name: "방산·우주", target: 10, band: 0.25, symbols: ["RKLB", "ITA", "KTOS", "AVAV"] },
+    { name: "에너지·원자재", target: 10, band: 0.25, symbols: ["URA", "GEV", "REMX"] },
+  ],
+};
+app.get("/api/rebalance", async (_req, res) => {
+  try {
+    res.json(JSON.parse(await fs.readFile(REBALANCE_FILE, "utf-8")));
+  } catch {
+    res.json(DEFAULT_REBALANCE);
+  }
+});
+app.put("/api/rebalance", async (req, res) => {
+  try {
+    const { buckets } = req.body;
+    if (!Array.isArray(buckets)) return res.status(400).json({ error: "buckets required" });
+    await ensureDataDir();
+    await fs.writeFile(REBALANCE_FILE, JSON.stringify({ buckets }, null, 2));
+    res.json({ buckets });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // API: 목표 설정 (1억 모으기 등)
 const GOAL_FILE = path.join(DATA_DIR, "goal.json");

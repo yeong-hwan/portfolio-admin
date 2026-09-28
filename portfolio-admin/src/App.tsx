@@ -21,6 +21,8 @@ import { ReturnDecomposition } from "./components/ReturnDecomposition";
 import { DrawdownChart } from "./components/DrawdownChart";
 import { DividendCard } from "./components/DividendCard";
 import { InflationCompass } from "./components/InflationCompass";
+import { MarketEnvironment } from "./components/MarketEnvironment";
+import { RebalanceCard } from "./components/RebalanceCard";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -61,6 +63,12 @@ function CollapseSection({ title, children }: { title: string; children: React.R
 }
 
 type Tab = 'portfolio' | 'quant' | 'tqqq';
+
+const TAB_LABEL: Record<Tab, string> = {
+  portfolio: '포트폴리오',
+  quant: '퀀트',
+  tqqq: 'TQQQ',
+};
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('portfolio');
@@ -115,7 +123,7 @@ export default function App() {
                   tab === t ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {t === 'portfolio' ? '포트폴리오' : t === 'quant' ? '퀀트' : 'TQQQ'}
+                {TAB_LABEL[t]}
               </button>
             ))}
           </div>
@@ -177,6 +185,10 @@ export default function App() {
           </div>
 
           <InflationCompass />
+
+          <MarketEnvironment />
+
+          <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
