@@ -153,9 +153,9 @@ export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset
   return (
     <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden">
       <div className="px-5 pt-4 pb-3 flex items-baseline justify-between">
-        <h2 className="text-base font-semibold text-white">밴드 리밸런싱</h2>
+        <h2 className="text-base font-semibold text-white">레이어 배분</h2>
         <div className="flex items-baseline gap-3">
-          <span className="text-xs text-gray-600">5/25 규칙 · 밴드 이탈 시에만 행동</span>
+          <span className="text-xs text-gray-600">테제 레이어별 비중 · 밴드(5/25) 이탈 시에만 행동</span>
           <button
             onClick={() => {
               setDraft(config.buckets.map((b) => ({ ...b })));

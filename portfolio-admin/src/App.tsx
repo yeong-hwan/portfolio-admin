@@ -184,11 +184,11 @@ export default function App() {
             <PerformanceMetrics />
           </div>
 
+          <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
+
           <InflationCompass />
 
           <MarketEnvironment />
-
-          <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
