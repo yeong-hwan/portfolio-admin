@@ -678,8 +678,8 @@ const REBALANCE_FILE = path.join(DATA_DIR, "rebalance.json");
 // 기본 버킷: docs/investment-principles.md의 "컴퓨팅 100배" 테제 5레이어 구조. UI에서 수정 가능.
 const DEFAULT_REBALANCE = {
   buckets: [
-    { name: "L1 연산 실리콘", target: 25, band: 0.25, symbols: ["AMD", "SMH", "IONQ", "DRAM"] },
-    { name: "L2 컴퓨팅 전력", target: 15, band: 0.25, symbols: ["IREN", "URA", "GEV"] },
+    { name: "L1 연산 실리콘", target: 25, band: 0.25, symbols: ["AMD", "SMH", "IONQ", "DRAM", "ANET"] },
+    { name: "L2 컴퓨팅 전력", target: 15, band: 0.25, symbols: ["IREN", "URA", "GEV", "VRT"] },
     { name: "L3 지능 플랫폼·응용", target: 25, band: 0.25, symbols: ["PLTR", "PTIR", "DNA", "GOOG", "RXRX"] },
     { name: "L4 자율 시스템", target: 10, band: 0.25, symbols: ["RKLB", "ITA", "KTOS", "AVAV", "REMX"] },
     { name: "L5 코어·인컴", target: 15, band: 0.25, symbols: ["SCHD", "QLD", "ULTY", "TQQQ"] },
