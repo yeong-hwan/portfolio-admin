@@ -6,3 +6,6 @@ portfolio-admin/data/
 
 node_modules/
 package-lock.json
+
+# Personal investment strategy (private)
+docs/investment-principles.md

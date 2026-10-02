@@ -41,6 +41,15 @@ export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset
   const [monthlySaving, setMonthlySaving] = useState(4_000_000);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Bucket[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  const toggleExpand = (name: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
 
   useEffect(() => {
     fetch("/api/rebalance").then((r) => r.json()).then(setConfig).catch(() => {});
@@ -165,11 +174,31 @@ export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset
           const barColor = r.status === "over" ? "bg-rose-500/70" : r.status === "under" ? "bg-blue-500/70" : "bg-emerald-500/60";
           const pos = Math.min(Math.max(r.current, 0), 50) / 50 * 100;
           const lo = r.lower / 50 * 100, hi = Math.min(r.upper, 50) / 50 * 100;
+          const isOpen = expanded.has(r.name);
+          // 보유 중인 종목만, 평가액 내림차순
+          const holdings = r.symbols
+            .map((sym) => positions.find((p) => p.symbol === sym))
+            .filter((p): p is Position => !!p)
+            .sort((a, b) => b.market_value - a.market_value);
           return (
-            <div key={r.name} className="px-5 py-2.5 border-b border-white/[0.05] last:border-0 flex items-center gap-4">
-              <div className="w-36 shrink-0">
-                <p className="text-sm text-gray-300 truncate">{r.name}</p>
-                <p className="text-xs text-gray-600">{r.symbols.length}종목 · {fmtMan(r.valueKrw)}</p>
+            <div key={r.name} className="border-b border-white/[0.05] last:border-0">
+            <div
+              className={`px-5 py-2.5 flex items-center gap-4 ${!editing ? "cursor-pointer hover:bg-white/[0.02] transition-colors" : ""}`}
+              onClick={() => !editing && toggleExpand(r.name)}
+            >
+              <div className="w-40 shrink-0 flex items-center gap-1.5">
+                {!editing && (
+                  <svg
+                    className={`h-3 w-3 shrink-0 text-gray-600 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  >
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-300 truncate">{r.name}</p>
+                  <p className="text-xs text-gray-600">{holdings.length}종목 · {fmtMan(r.valueKrw)}</p>
+                </div>
               </div>
               {editing ? (
                 <div className="flex items-center gap-2 text-sm">
@@ -217,6 +246,44 @@ export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset
                   </span>
                 </>
               )}
+            </div>
+
+            {/* 레이어 내 종목 상세 */}
+            {isOpen && !editing && (
+              <div className="px-5 pb-3 pt-0.5">
+                <div className="ml-[18px] rounded-xl bg-white/[0.02] border border-white/[0.05] divide-y divide-white/[0.04]">
+                  {holdings.map((p) => {
+                    const w = (p.market_value / totalAsset) * 100;
+                    const inBucket = r.valueKrw > 0 ? (p.market_value / r.valueKrw) * 100 : 0;
+                    return (
+                      <div key={p.symbol} className="px-4 py-2 flex items-center gap-3">
+                        <span className="w-14 shrink-0 text-[13px] font-medium text-gray-300">{p.symbol}</span>
+                        <span className="w-32 shrink-0 text-xs text-gray-600 truncate">{p.name}</span>
+                        {/* 버킷 내 비중 바 */}
+                        <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-blue-500/50" style={{ width: `${Math.max(inBucket, 1)}%` }} />
+                        </div>
+                        <span className="w-24 shrink-0 text-right text-xs text-gray-500 tabular-nums">
+                          버킷 내 {inBucket.toFixed(0)}%
+                        </span>
+                        <span className="w-16 shrink-0 text-right text-[13px] font-semibold text-white tabular-nums">
+                          {w.toFixed(1)}%
+                        </span>
+                        <span className="w-20 shrink-0 text-right text-xs text-gray-500 tabular-nums">
+                          {fmtMan(p.market_value)}
+                        </span>
+                        <span className={`w-14 shrink-0 text-right text-xs tabular-nums ${p.profit_rate >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {(p.profit_rate >= 0 ? "+" : "") + (p.profit_rate * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {!holdings.length && (
+                    <p className="px-4 py-2 text-xs text-gray-600">보유 종목 없음</p>
+                  )}
+                </div>
+              </div>
+            )}
             </div>
           );
         })}

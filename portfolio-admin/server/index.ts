@@ -675,14 +675,15 @@ app.get("/api/dividends", dividendsCached.handler);
 
 // API: 밴드 리밸런싱 설정 (버킷·목표비중·밴드)
 const REBALANCE_FILE = path.join(DATA_DIR, "rebalance.json");
-// 기본 버킷: 2026-09 보유 종목 기준 초기 분류. UI에서 수정 가능.
+// 기본 버킷: docs/investment-principles.md의 "컴퓨팅 100배" 테제 5레이어 구조. UI에서 수정 가능.
 const DEFAULT_REBALANCE = {
   buckets: [
-    { name: "코어 (지수·배당)", target: 35, band: 0.25, symbols: ["SCHD", "QLD", "SMH", "GOOG", "ULTY", "TQQQ", "KMLM"] },
-    { name: "성장 개별주", target: 30, band: 0.25, symbols: ["AMD", "PLTR", "PTIR", "HOOD", "DNA", "HIMS", "IONQ", "NVO", "RXRX", "FIG", "DRAM"] },
-    { name: "크립토 연동", target: 15, band: 0.35, symbols: ["IREN", "ETHU", "BITU", "BITO", "BMNR", "CRCL", "CONL", "COIN"] },
-    { name: "방산·우주", target: 10, band: 0.25, symbols: ["RKLB", "ITA", "KTOS", "AVAV"] },
-    { name: "에너지·원자재", target: 10, band: 0.25, symbols: ["URA", "GEV", "REMX"] },
+    { name: "L1 연산 실리콘", target: 25, band: 0.25, symbols: ["AMD", "SMH", "IONQ", "DRAM"] },
+    { name: "L2 컴퓨팅 전력", target: 15, band: 0.25, symbols: ["IREN", "URA", "GEV"] },
+    { name: "L3 지능 플랫폼·응용", target: 25, band: 0.25, symbols: ["PLTR", "PTIR", "DNA", "GOOG", "RXRX"] },
+    { name: "L4 자율 시스템", target: 10, band: 0.25, symbols: ["RKLB", "ITA", "KTOS", "AVAV", "REMX"] },
+    { name: "L5 코어·인컴", target: 15, band: 0.25, symbols: ["SCHD", "QLD", "ULTY", "TQQQ"] },
+    { name: "테제 무관", target: 10, band: 0.35, symbols: ["ETHU", "BITU", "BITO", "CRCL", "COIN", "CONL", "NVO", "HOOD", "HIMS", "FIG", "BMNR"] },
   ],
 };
 app.get("/api/rebalance", async (_req, res) => {
