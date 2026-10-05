@@ -58,7 +58,14 @@ export const TaxCard = memo(function TaxCard({ positions }: Props) {
       .catch(() => setError(true));
   }, []);
 
-  if (error) return null;
+  if (error) {
+    return (
+      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
+        <h2 className="text-base font-semibold text-white mb-2">양도세 트래커</h2>
+        <p className="text-xs text-gray-500">데이터 로드 실패 — 새로고침하면 다시 시도합니다.</p>
+      </div>
+    );
+  }
   if (!data) {
     return (
       <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">

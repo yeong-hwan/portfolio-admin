@@ -22,7 +22,7 @@ function textColor(v: number): string {
 
 const LABEL_W = 56;
 
-export function CorrelationHeatmap({ positions = [] }: { positions?: Position[] }) {
+export function CorrelationHeatmap({ positions = [], embedded = false }: { positions?: Position[]; embedded?: boolean }) {
   const [data, setData] = useState<CorrelationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export function CorrelationHeatmap({ positions = [] }: { positions?: Position[] 
   const showText = estimatedCellPx >= 22;
 
   return (
-    <div ref={cardRef} className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+    <div ref={cardRef} className={embedded ? "p-5" : "bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5"}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">수익률 상관관계</h2>

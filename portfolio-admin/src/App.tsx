@@ -46,6 +46,16 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
+function SectionHeader({ no, title }: { no: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-10 first:pt-0">
+      <span className="text-xs font-bold text-gray-600 tabular-nums">{no}</span>
+      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-widest whitespace-nowrap">{title}</h2>
+      <div className="flex-1 h-px bg-white/[0.07]" />
+    </div>
+  );
+}
+
 function CollapseSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -204,6 +214,8 @@ export default function App() {
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
+          <SectionHeader no="01" title="자산 현황" />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <div className="flex flex-col gap-6">
               <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
@@ -213,6 +225,8 @@ export default function App() {
             </div>
             <PerformanceMetrics />
           </div>
+
+          <SectionHeader no="02" title="배분 · 리스크 규율" />
 
           <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
 
@@ -225,31 +239,38 @@ export default function App() {
 
           <FcfPowerMap positions={snapshot.positions} />
 
-          <InflationCompass />
+          <MacroSensitivity />
+
+          <SectionHeader no="03" title="시장 환경" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+            <div className="lg:col-span-3">
+              <InflationCompass />
+            </div>
+            <div className="lg:col-span-2">
+              <FxChart compact />
+            </div>
+          </div>
 
           <MarketEnvironment />
 
+          <SectionHeader no="04" title="수익 · 현금흐름" />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
-            <FxChart />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <MonthlyHeatmap />
-            <ReturnDecomposition />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <ReturnDecomposition />
             <DrawdownChart />
-            <DividendCard />
           </div>
+
+          <DividendCard />
+
+          <SectionHeader no="05" title="보유 · 세금" />
 
           <TaxCard positions={snapshot.positions} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <MacroSensitivity />
-            <CorrelationHeatmap positions={snapshot.positions} />
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -257,6 +278,10 @@ export default function App() {
             </div>
             <AllocationChart positions={snapshot.positions} cashKrw={cashKrw} />
           </div>
+
+          <CollapseSection title="수익률 상관관계">
+            <CorrelationHeatmap positions={snapshot.positions} embedded />
+          </CollapseSection>
 
           <CollapseSection title="오늘 상승/하락">
             <TopMovers positions={snapshot.positions} />

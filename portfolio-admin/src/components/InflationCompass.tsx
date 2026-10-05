@@ -58,7 +58,14 @@ export const InflationCompass = memo(function InflationCompass() {
       .catch(() => setError(true));
   }, []);
 
-  if (error) return null;
+  if (error) {
+    return (
+      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
+        <h2 className="text-base font-semibold text-white mb-2">인플레이션 나침반 (Varadi)</h2>
+        <p className="text-xs text-gray-500">데이터 로드 실패 — 새로고침하면 다시 시도합니다.</p>
+      </div>
+    );
+  }
   if (!data) {
     return (
       <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl p-5">
@@ -70,13 +77,13 @@ export const InflationCompass = memo(function InflationCompass() {
   const s = data.signals;
 
   return (
-    <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl overflow-hidden">
+    <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl overflow-hidden h-full">
       <div className="px-5 py-4 border-b border-white/[0.08] flex items-baseline justify-between">
         <h2 className="font-semibold text-white">인플레이션 나침반 (Varadi)</h2>
         <span className="text-[10px] text-gray-600">SPY 200MA × T5YIE · 월말 리밸런싱 기준 · {data.asOf}</span>
       </div>
 
-      <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="p-5 space-y-6">
         {/* 4분면 그리드 */}
         <div>
           <div className="grid grid-cols-[auto_1fr_1fr] gap-1.5 text-[10px] text-gray-500">
@@ -93,15 +100,15 @@ export const InflationCompass = memo(function InflationCompass() {
                   return (
                     <div
                       key={q}
-                      className={`rounded-xl px-3 py-4 text-center border transition-all ${
+                      className={`rounded-xl px-3 py-7 text-center border transition-all ${
                         active ? "border-white/40" : "border-white/[0.06] opacity-45"
                       }`}
                       style={{ background: `${QUADRANT_COLOR[q]}${active ? "33" : "14"}` }}
                     >
-                      <p className="text-sm font-bold" style={{ color: QUADRANT_COLOR[q] }}>
+                      <p className="text-lg font-bold" style={{ color: QUADRANT_COLOR[q] }}>
                         {q === "DEFENSE" ? "XLP+IEF" : q}
                       </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{QUADRANT_NAME[q]}</p>
+                      <p className="text-xs text-gray-400 mt-1">{QUADRANT_NAME[q]}</p>
                     </div>
                   );
                 })}
@@ -115,7 +122,8 @@ export const InflationCompass = memo(function InflationCompass() {
           </p>
         </div>
 
-        {/* 신호 상세 */}
+        {/* 아랫줄: 신호 구성 | 최근 국면 전환 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-5 border-t border-white/[0.06] pt-5">
         <div className="space-y-2 text-[11px]">
           <p className="text-xs text-gray-400 mb-2">신호 구성</p>
           <div className="flex items-center gap-2">
@@ -164,6 +172,7 @@ export const InflationCompass = memo(function InflationCompass() {
           <p className="mt-3 text-[10px] text-gray-600 leading-relaxed">
             일별 신호 기준 전환 시점. 원 전략은 매월 말 신호로 리밸런싱하므로 월중 전환은 참고용.
           </p>
+        </div>
         </div>
       </div>
     </div>
