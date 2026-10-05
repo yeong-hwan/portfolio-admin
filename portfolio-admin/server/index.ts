@@ -17,6 +17,7 @@ import { computeTaxSummary, simulateSale } from "./tax.js";
 import { computeDividendIncome } from "./dividends.js";
 import { computeInflationCompass } from "./inflation-compass.js";
 import { computeMacroEnv, computeFlows, computeGeopolitics } from "./market-env.js";
+import { computeFundamentals } from "./fundamentals.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -583,6 +584,43 @@ app.get("/api/market-env/flows", flowsCached.handler);
 const geoCached = makeCached("market-env-geo", 6 * 60 * 60 * 1000, () => computeGeopolitics());
 app.get("/api/market-env/geo", geoCached.handler);
 
+// API: 보유 종목 펀더멘털 (FCF·순현금·런웨이) — stockanalysis, 주 1회 갱신
+const fundamentalsCached = makeCached("fundamentals", 7 * 24 * 60 * 60 * 1000, () => computeFundamentals());
+app.get("/api/fundamentals", fundamentalsCached.handler);
+
+// API: QQQ 고점 대비 드로다운 — TQQQ 분할 매수 래더 트리거용
+const qqqDdCached = makeCached("qqq-drawdown", QUANT_TTL, async () => {
+  const { getHistoricalCandles } = await import("./toss-api/market.js");
+  const from = new Date(Date.now() - 3 * 365 * 86400000).toISOString().split("T")[0];
+  const candles = await getHistoricalCandles("QQQ", from);
+  if (candles.length < 20) throw new Error("QQQ 캔들 부족");
+
+  let ath = 0, athDate = "";
+  const series: Array<{ date: string; dd: number }> = [];
+  for (const c of candles) {
+    if (c.close > ath) { ath = c.close; athDate = c.date; }
+    series.push({ date: c.date, dd: c.close / ath - 1 });
+  }
+  const last = candles[candles.length - 1];
+  // 주간 샘플링 (스파크라인용)
+  const weekly = series.filter((_, i) => i % 5 === 4 || i === series.length - 1);
+
+  return {
+    asOf: last.date,
+    price: last.close,
+    ath,
+    athDate,
+    drawdown: last.close / ath - 1,
+    ladder: [-0.10, -0.15, -0.20].map((level) => ({
+      level,
+      priceAt: ath * (1 + level),
+      reached: last.close <= ath * (1 + level),
+    })),
+    series: weekly,
+  };
+});
+app.get("/api/qqq-drawdown", qqqDdCached.handler);
+
 // API: TQQQ signal + indicators
 const tqqqCached = makeCached("tqqq", QUANT_TTL, () => getTqqqData());
 app.get("/api/tqqq", tqqqCached.handler);
@@ -678,7 +716,7 @@ const REBALANCE_FILE = path.join(DATA_DIR, "rebalance.json");
 // 기본 버킷: docs/investment-principles.md의 "컴퓨팅 100배" 테제 5레이어 구조. UI에서 수정 가능.
 const DEFAULT_REBALANCE = {
   buckets: [
-    { name: "L1 연산 실리콘", target: 25, band: 0.25, symbols: ["AMD", "SMH", "IONQ", "DRAM", "ANET"] },
+    { name: "L1 연산 실리콘", target: 25, band: 0.25, symbols: ["AMD", "SMH", "IONQ", "DRAM", "ANET", "NVDA", "TSM"] },
     { name: "L2 컴퓨팅 전력", target: 15, band: 0.25, symbols: ["IREN", "URA", "GEV", "VRT"] },
     { name: "L3 지능 플랫폼·응용", target: 25, band: 0.25, symbols: ["PLTR", "PTIR", "DNA", "GOOG", "RXRX"] },
     { name: "L4 자율 시스템", target: 10, band: 0.25, symbols: ["RKLB", "ITA", "KTOS", "AVAV", "REMX"] },

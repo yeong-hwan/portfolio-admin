@@ -23,6 +23,10 @@ import { DividendCard } from "./components/DividendCard";
 import { InflationCompass } from "./components/InflationCompass";
 import { MarketEnvironment } from "./components/MarketEnvironment";
 import { RebalanceCard } from "./components/RebalanceCard";
+import { QqqDrawdown } from "./components/QqqDrawdown";
+import { LimitsMonitor } from "./components/LimitsMonitor";
+import { FundamentalsMonitor } from "./components/FundamentalsMonitor";
+import { FcfPowerMap } from "./components/FcfPowerMap";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -175,16 +179,26 @@ export default function App() {
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <div className="flex flex-col gap-6">
               <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
               <GoalCard totalAsset={snapshot.summary.total_asset_amount} />
               <PortfolioCandles />
+              <QqqDrawdown />
             </div>
             <PerformanceMetrics />
           </div>
 
           <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            <LimitsMonitor positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
+            <div className="lg:col-span-2">
+              <FundamentalsMonitor />
+            </div>
+          </div>
+
+          <FcfPowerMap />
 
           <InflationCompass />
 

@@ -75,7 +75,7 @@ function StatCard({
       ? "text-red-400"
       : "text-white";
   return (
-    <div className="bg-white/[0.04] rounded-xl p-5 flex flex-col gap-1.5">
+    <div className="bg-white/[0.04] rounded-xl p-4 flex flex-col gap-1">
       <span className="text-xs text-gray-500 uppercase tracking-wide">{label}</span>
       <span className={`text-xl font-bold ${textColor}`}>{value}</span>
       {sub && <span className="text-xs text-gray-500">{sub}</span>}
@@ -116,7 +116,7 @@ export function PerformanceMetrics() {
       rightPriceScale: { borderColor: "#374151" },
       timeScale: { borderColor: "#374151", timeVisible: false },
       width: containerRef.current.clientWidth,
-      height: 220,
+      height: containerRef.current.clientHeight || 320,
     });
 
     const krwFormat = {
@@ -146,11 +146,17 @@ export function PerformanceMetrics() {
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
-    const onResize = () => {
-      if (containerRef.current) chart.applyOptions({ width: containerRef.current.clientWidth });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    // 컨테이너 크기(가로·세로 모두)를 따라가 왼쪽 열과 하단 정렬 유지
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current) {
+        chart.applyOptions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, [data]);
 
   const p = data?.portfolio;
@@ -160,7 +166,7 @@ export function PerformanceMetrics() {
     s >= 1 ? "green" : s >= 0.5 ? "neutral" : "red";
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-6">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">성과 지표</h2>
@@ -190,9 +196,9 @@ export function PerformanceMetrics() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <StatCard
               label="실투입 대비 수익률"
-              value={pctPoint(data.excess.totalReturn)}
-              sub={`내 ${pct(p.totalReturn)} · SPY 적립 ${pct(b.totalReturn)}`}
-              color={data.excess.totalReturn >= 0 ? "green" : "red"}
+              value={pct(p.totalReturn)}
+              sub={`SPY 적립(${pct(b.totalReturn)}) 대비 ${pctPoint(data.excess.totalReturn)} ${data.excess.totalReturn >= 0 ? "초과" : "미달"}`}
+              color={p.totalReturn >= 0 ? "green" : "red"}
             />
             <StatCard
               label="가치 차이 (vs SPY 적립)"
@@ -226,6 +232,22 @@ export function PerformanceMetrics() {
             />
           </div>
 
+          {/* 상대 성과 차트 — 남은 높이 전부 차지해 왼쪽 열과 하단 정렬 */}
+          <div className="border-t border-white/[0.08] pt-4 flex-1 flex flex-col min-h-0">
+            <div className="flex items-center gap-4 mb-3">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">자산 가치 비교 (₩ · 동일 입금)</p>
+              <div className="flex items-center gap-3 ml-auto">
+                <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className="w-4 h-0.5 bg-blue-400 inline-block" />내 포트폴리오
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className="w-4 h-0.5 bg-gray-500 inline-block rounded" style={{ borderTop: "2px dashed #6b7280" }} />SPY 적립 시뮬
+                </span>
+              </div>
+            </div>
+            <div ref={containerRef} className="flex-1 min-h-[120px]" />
+          </div>
+
           {/* SPY 비교 */}
           <div className="border-t border-white/[0.08] pt-4">
             <div className="grid grid-cols-3 gap-3">
@@ -245,22 +267,6 @@ export function PerformanceMetrics() {
                 color="neutral"
               />
             </div>
-          </div>
-
-          {/* 상대 성과 차트 */}
-          <div className="border-t border-white/[0.08] pt-4">
-            <div className="flex items-center gap-4 mb-3">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">자산 가치 비교 (₩ · 동일 입금)</p>
-              <div className="flex items-center gap-3 ml-auto">
-                <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className="w-4 h-0.5 bg-blue-400 inline-block" />내 포트폴리오
-                </span>
-                <span className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className="w-4 h-0.5 bg-gray-500 inline-block rounded" style={{ borderTop: "2px dashed #6b7280" }} />SPY 적립 시뮬
-                </span>
-              </div>
-            </div>
-            <div ref={containerRef} />
           </div>
         </>
       )}
