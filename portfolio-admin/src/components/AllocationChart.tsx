@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { Position } from "../types";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 const COLORS = [
   "#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd",
@@ -10,11 +11,13 @@ const COLORS = [
 ];
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
 
 export const AllocationChart = memo(function AllocationChart({ positions, cashKrw = 0 }: { positions: Position[]; cashKrw?: number }) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const data = useMemo(() => {
     const total = positions.reduce((s, p) => s + p.market_value, 0) + cashKrw;
     const sorted = [...positions].sort((a, b) => b.market_value - a.market_value);

@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import type { Position } from "../types";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface TaxSummary {
   years: Array<{ year: string; realizedKrw: number; sellCount: number; taxableKrw: number; estimatedTaxKrw: number }>;
@@ -15,10 +16,12 @@ interface TaxSummary {
 }
 
 function fmt(n: number): string {
+  if (isMasked()) return MASK;
   return Math.round(n).toLocaleString("ko-KR");
 }
 
 function fmtMan(n: number): string {
+  if (isMasked()) return MASK;
   const man = Math.round(n / 10000);
   return (man < 0 ? "-" : "") + Math.abs(man).toLocaleString("ko-KR") + "만";
 }
@@ -40,6 +43,7 @@ interface SaleSimulation {
 }
 
 export const TaxCard = memo(function TaxCard({ positions }: Props) {
+  const masked = useMasked();
   const [data, setData] = useState<TaxSummary | null>(null);
   const [error, setError] = useState(false);
   const [simSymbol, setSimSymbol] = useState("");
@@ -165,7 +169,7 @@ export const TaxCard = memo(function TaxCard({ positions }: Props) {
           >
             <option value="">종목 선택</option>
             {[...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((p) => (
-              <option key={p.symbol} value={p.symbol}>{p.symbol} (보유 {p.quantity.toFixed(2)})</option>
+              <option key={p.symbol} value={p.symbol}>{p.symbol}{masked ? "" : ` (보유 ${p.quantity.toFixed(2)})`}</option>
             ))}
           </select>
           <input

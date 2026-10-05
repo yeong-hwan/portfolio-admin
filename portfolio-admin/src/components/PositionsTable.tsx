@@ -1,7 +1,9 @@
 import { memo, useState, useMemo } from "react";
 import type { Position, SortKey, SortDir } from "../types";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
@@ -30,6 +32,7 @@ const COLUMNS: { key: SortKey; label: string; align?: string }[] = [
 ];
 
 export const PositionsTable = memo(function PositionsTable({ positions }: { positions: Position[] }) {
+  const masked = useMasked();
   const [sortKey, setSortKey] = useState<SortKey>("market_value");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filter, setFilter] = useState("");
@@ -113,7 +116,7 @@ export const PositionsTable = memo(function PositionsTable({ positions }: { posi
                   <div className="text-xs text-gray-500">{p.name}</div>
                 </td>
                 <td className="px-4 py-3 text-right text-gray-300 font-mono">
-                  {p.quantity.toFixed(2)}
+                  {masked ? MASK : p.quantity.toFixed(2)}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-300 font-mono">
                   ₩{fmt(p.average_price)}

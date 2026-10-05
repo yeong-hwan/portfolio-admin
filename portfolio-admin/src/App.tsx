@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePortfolio } from "./hooks/usePortfolio";
+import { useMasked, toggleMasked } from "./lib/privacy";
 import { SummaryCards } from "./components/SummaryCards";
 import { PositionsTable } from "./components/PositionsTable";
 import { AllocationChart } from "./components/AllocationChart";
@@ -82,6 +83,7 @@ export default function App() {
     setTab(t);
     setVisited(prev => (prev.has(t) ? prev : new Set(prev).add(t)));
   };
+  const masked = useMasked();
   const {
     snapshot,
     exchangeRate,
@@ -137,6 +139,29 @@ export default function App() {
                 {lastRefresh.toLocaleTimeString("ko-KR")}
               </span>
             )}
+            <button
+              onClick={toggleMasked}
+              className={`p-2.5 rounded-xl transition-all active:scale-90 border ${
+                masked
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                  : "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border-white/[0.08] hover:border-gray-600/50"
+              }`}
+              title={masked ? "마스킹 해제" : "금액 마스킹"}
+            >
+              {masked ? (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                  <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
             <a
               href="http://100.110.86.86:3001"
               target="_blank"
@@ -194,11 +219,11 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             <LimitsMonitor positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
             <div className="lg:col-span-2">
-              <FundamentalsMonitor />
+              <FundamentalsMonitor positions={snapshot.positions} />
             </div>
           </div>
 
-          <FcfPowerMap />
+          <FcfPowerMap positions={snapshot.positions} />
 
           <InflationCompass />
 

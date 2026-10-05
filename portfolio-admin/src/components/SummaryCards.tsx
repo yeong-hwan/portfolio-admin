@@ -1,8 +1,10 @@
 import { memo } from "react";
 import type { AccountSummary } from "../types";
 import type { ExchangeRate } from "../hooks/usePortfolio";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export const SummaryCards = memo(function SummaryCards({ summary, exchangeRate }: Props) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const principal = summary.total_asset_amount - summary.evaluated_profit_amount;
   const profit = summary.evaluated_profit_amount;
   const profitPositive = profit >= 0;

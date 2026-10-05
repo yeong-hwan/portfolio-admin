@@ -9,6 +9,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 import type { Checkpoint } from "../types";
 
 interface TrendChartProps {
@@ -17,6 +18,7 @@ interface TrendChartProps {
 }
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
@@ -72,6 +74,7 @@ function makeProfitShape(yMin: number, yMax: number) {
 }
 
 export const TrendChart = memo(function TrendChart({ checkpoints, onRefresh }: TrendChartProps) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const [period, setPeriod] = useState<number | null>(30);
   const [filling, setFilling] = useState(false);
   const [fillMessage, setFillMessage] = useState<string | null>(null);

@@ -1,4 +1,5 @@
 import { Fragment, memo, useEffect, useState } from "react";
+import type { Position } from "../types";
 
 type FundamentalStatus = "netDebtBurn" | "runwayAlert" | "runwayWatch" | "burnOk" | "compounder";
 
@@ -48,7 +49,7 @@ function pct(v: number | null): string {
   return v == null ? "—" : (v * 100).toFixed(1) + "%";
 }
 
-export const FundamentalsMonitor = memo(function FundamentalsMonitor() {
+export const FundamentalsMonitor = memo(function FundamentalsMonitor({ positions }: { positions: Position[] }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
@@ -72,7 +73,10 @@ export const FundamentalsMonitor = memo(function FundamentalsMonitor() {
     );
   }
 
-  const alerts = data.rows.filter((r) => r.status === "netDebtBurn" || r.status === "runwayAlert").length;
+  // 매도한 종목은 즉시 제외 (펀더멘털 캐시는 주 1회지만 보유 여부는 실시간 스냅샷 기준)
+  const held = new Set(positions.map((p) => p.symbol));
+  const rows = data.rows.filter((r) => held.has(r.symbol));
+  const alerts = rows.filter((r) => r.status === "netDebtBurn" || r.status === "runwayAlert").length;
 
   return (
     <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden h-full flex flex-col">
@@ -96,7 +100,7 @@ export const FundamentalsMonitor = memo(function FundamentalsMonitor() {
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((r) => {
+            {rows.map((r) => {
               const info = STATUS_INFO[r.status];
               const isBurn = r.fcfTTM != null && r.fcfTTM < 0;
               const isOpen = open === r.symbol;

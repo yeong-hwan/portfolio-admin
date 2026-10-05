@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import type { Position } from "../types";
 
 // 10년 뒤 매수원금 대비 FCF 수익률 = Y × (1+g)^10
 // Y = 현재 FCF 수익률, g = 향후 10년 연평균 FCF 성장률 (3Y 실적 CAGR을 0~30%로 클램프해 근사)
@@ -53,7 +54,7 @@ function textColorFor(v: number): string {
   return v >= 0.3 ? "#172023" : "rgba(255,255,255,0.92)";
 }
 
-export const FcfPowerMap = memo(function FcfPowerMap() {
+export const FcfPowerMap = memo(function FcfPowerMap({ positions }: { positions: Position[] }) {
   const [rows, setRows] = useState<FundRow[] | null>(null);
 
   useEffect(() => {
@@ -65,8 +66,9 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
 
   const points = useMemo<Point[]>(() => {
     if (!rows) return [];
+    const held = new Set(positions.map((p) => p.symbol));
     return rows
-      .filter((r) => r.status === "compounder" && r.fcfYield != null && r.fcfYield > 0)
+      .filter((r) => held.has(r.symbol) && r.status === "compounder" && r.fcfYield != null && r.fcfYield > 0)
       .map((r) => {
         const assumed = r.fcfCagr3y == null;
         const raw = assumed ? G_DEFAULT : Math.max(0, r.fcfCagr3y!);
@@ -81,15 +83,15 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
         };
       })
       .sort((a, b) => b.tenYr - a.tenYr);
-  }, [rows]);
+  }, [rows, positions]);
 
   const cellChips = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, Array<{ s: string; capped: boolean }>>();
     for (const p of points) {
       const col = COLS.reduce((best, c) => (Math.abs(c - p.y) < Math.abs(best - p.y) ? c : best), COLS[0]);
       const row = ROWS.reduce((best, r) => (Math.abs(r - p.g) < Math.abs(best - p.g) ? r : best), ROWS[0]);
       const key = `${row}-${col}`;
-      map.set(key, [...(map.get(key) ?? []), p.symbol]);
+      map.set(key, [...(map.get(key) ?? []), { s: p.symbol, capped: p.capped }]);
     }
     return map;
   }, [points]);
@@ -114,7 +116,7 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
     const out = new Map<string, { lx: number; ly: number }>();
     for (const p of sorted) {
       const cx = px(p), cy = py(p);
-      const text = p.symbol + (p.capped ? "↑" : "") + (p.assumed ? "*" : "");
+      const text = p.symbol + (p.assumed ? "*" : "");
       const w = text.length * 6.2;
       const lx = Math.min(Math.max(cx, PAD_L + w / 2 + 2), PAD_L + plotW - w / 2 - 2);
       const nearBottom = cy > PAD_T + plotH - 22;
@@ -192,16 +194,16 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
               const lp = labels.get(p.symbol);
               return (
                 <g key={p.symbol}>
-                  <circle cx={px(p)} cy={py(p)} r="4.5" fill="#fff" stroke="#111827" strokeWidth="1.5" opacity={p.assumed ? 0.55 : 1} />
+                  <circle cx={px(p)} cy={py(p)} r="4.5" fill={p.capped ? "#f3cf57" : "#fff"} stroke="#111827" strokeWidth="1.5" opacity={p.assumed ? 0.55 : 1} />
                   {lp && (
                     <text
                       x={lp.lx} y={lp.ly}
                       textAnchor="middle"
                       fontSize="10" fontWeight="700"
-                      fill={p.assumed ? "rgba(255,255,255,0.6)" : "#fff"}
+                      fill={p.capped ? "#f3cf57" : p.assumed ? "rgba(255,255,255,0.6)" : "#fff"}
                       stroke="rgba(10,15,20,0.75)" strokeWidth="2.5" paintOrder="stroke"
                     >
-                      {p.symbol}{p.capped ? "↑" : ""}{p.assumed ? "*" : ""}
+                      {p.symbol}{p.assumed ? "*" : ""}
                     </text>
                   )}
                 </g>
@@ -209,7 +211,7 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
             })}
           </svg>
           <p className="text-xs text-gray-600 mt-2">
-            <span className="text-[#f3cf57] font-medium">금색선</span> = 10년 뒤 20% 경계 · ↑ = 실적 성장률이 상한 30% 초과 → 30%로 보수 적용 · * = CAGR 미산출 (기본가정 10%)
+            <span className="text-[#f3cf57] font-medium">금색선</span> = 10년 뒤 20% 경계 · <span className="text-[#f3cf57] font-medium">금색 종목</span> = 실적 성장률 30% 초과 → 상한 30%로 보수 적용 · * = CAGR 미산출 (기본가정 10%)
           </p>
         </div>
 
@@ -245,8 +247,13 @@ export const FcfPowerMap = memo(function FcfPowerMap() {
                           </span>
                           {has && (
                             <div className="flex flex-wrap justify-center gap-0.5 leading-none">
-                              {chips.map((s) => (
-                                <span key={s} className="text-[10px] font-bold px-1 py-px rounded bg-gray-950/75 text-white">{s}</span>
+                              {chips.map((c) => (
+                                <span
+                                  key={c.s}
+                                  className={`text-[10px] font-bold px-1 py-px rounded ${c.capped ? "bg-[#f3cf57] text-gray-900" : "bg-gray-950/75 text-white"}`}
+                                >
+                                  {c.s}
+                                </span>
                               ))}
                             </div>
                           )}

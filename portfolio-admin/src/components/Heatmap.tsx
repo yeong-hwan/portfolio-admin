@@ -1,5 +1,6 @@
 import { memo, useMemo, useRef, useLayoutEffect, useState } from "react";
 import type { Position } from "../types";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 function pct(n: number | undefined | null): string {
   if (n == null || isNaN(n)) return "0.00%";
@@ -7,6 +8,7 @@ function pct(n: number | undefined | null): string {
 }
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
@@ -145,6 +147,7 @@ function layoutStrip(
 type HeatmapMode = "today" | "total";
 
 export const Heatmap = memo(function Heatmap({ positions, cashKrw = 0 }: { positions: Position[]; cashKrw?: number }) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 450 });
   const [mode, setMode] = useState<HeatmapMode>("today");

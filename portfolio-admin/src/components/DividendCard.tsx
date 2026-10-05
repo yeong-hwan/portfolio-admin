@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface DividendIncome {
   totalGrossKrw: number;
@@ -20,11 +21,13 @@ interface DividendIncome {
 }
 
 function fmtMan(n: number): string {
+  if (isMasked()) return MASK;
   const man = n / 10000;
   return (man < 0 ? "-" : "") + Math.abs(man).toFixed(man < 100 ? 1 : 0) + "만";
 }
 
 export const DividendCard = memo(function DividendCard() {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const [data, setData] = useState<DividendIncome | null>(null);
   const [error, setError] = useState(false);
 
@@ -70,7 +73,7 @@ export const DividendCard = memo(function DividendCard() {
             />
             <YAxis
               tick={{ fill: "#6b7280", fontSize: 10 }}
-              tickFormatter={(v: number) => Math.round(v / 10000) + "만"}
+              tickFormatter={(v: number) => (isMasked() ? MASK : Math.round(v / 10000) + "만")}
               width={40}
               axisLine={false}
               tickLine={false}
@@ -84,7 +87,7 @@ export const DividendCard = memo(function DividendCard() {
                 fontSize: "12px",
               }}
               labelStyle={{ color: "#9ca3af" }}
-              formatter={(v) => [`₩ ${Math.round(Number(v)).toLocaleString()}`, "세전 배당"]}
+              formatter={(v) => [isMasked() ? MASK : `₩ ${Math.round(Number(v)).toLocaleString()}`, "세전 배당"]}
             />
             <Bar dataKey="grossKrw" fill="#10b981" fillOpacity={0.75} radius={[3, 3, 0, 0]} />
           </BarChart>

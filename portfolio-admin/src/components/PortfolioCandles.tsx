@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createChart, CandlestickSeries, ColorType } from "lightweight-charts";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface PortfolioCandle {
   date: string;
@@ -20,6 +21,7 @@ interface TooltipData {
 type Range = "1M" | "3M" | "6M" | "YTD" | "1Y" | "All";
 
 function formatK(value: number): string {
+  if (isMasked()) return MASK;
   const k = Math.floor(value / 10_000_000 * 100) / 100;
   return k.toFixed(2) + " K";
 }
@@ -36,6 +38,7 @@ function filterByRange(candles: PortfolioCandle[], range: Range): PortfolioCandl
 }
 
 export function PortfolioCandles() {
+  const masked = useMasked();
   const [candles, setCandles] = useState<PortfolioCandle[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +111,7 @@ export function PortfolioCandles() {
     });
 
     return () => { chartRef.current?.remove(); chartRef.current = null; };
-  }, [candles, range]);
+  }, [candles, range, masked]);
 
   return (
     <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">

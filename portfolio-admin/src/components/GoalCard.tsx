@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from "react";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface Goal {
   targetKrw: number;
@@ -6,6 +7,7 @@ interface Goal {
 }
 
 function fmtMan(n: number): string {
+  if (isMasked()) return MASK;
   return Math.round(n / 10000).toLocaleString("ko-KR") + "만";
 }
 
@@ -32,6 +34,7 @@ interface Props {
 }
 
 export const GoalCard = memo(function GoalCard({ totalAsset }: Props) {
+  const masked = useMasked();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftTarget, setDraftTarget] = useState("");
@@ -73,7 +76,7 @@ export const GoalCard = memo(function GoalCard({ totalAsset }: Props) {
         </div>
         <div className="flex items-baseline gap-3">
           <span className="text-sm font-bold text-white">{(progress * 100).toFixed(1)}%</span>
-          <button
+          {!masked && <button
             onClick={() => {
               setDraftTarget(String(goal.targetKrw / 10000));
               setDraftMonthly(String(goal.monthlySavingKrw / 10000));
@@ -82,7 +85,7 @@ export const GoalCard = memo(function GoalCard({ totalAsset }: Props) {
             className="text-[10px] text-gray-600 hover:text-gray-300 transition-colors"
           >
             편집
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -109,7 +112,7 @@ export const GoalCard = memo(function GoalCard({ totalAsset }: Props) {
         </span>
       </div>
 
-      {editing && (
+      {editing && !masked && (
         <div className="mt-3 flex items-center gap-2 text-xs">
           <input
             value={draftTarget}

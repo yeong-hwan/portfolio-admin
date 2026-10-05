@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WilliamsGauge } from "./WilliamsGauge";
 import { DropMeter } from "./DropMeter";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 type Signal = 'STRONG_BUY' | 'BUY' | 'WATCH' | 'HOLD' | 'REDUCE';
 
@@ -63,6 +64,7 @@ function QuoteCard({ symbol, q }: { symbol: string; q: QuoteData }) {
 }
 
 export function TqqqManager() {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const [data, setData]       = useState<TqqqData | null>(null);
   const [log, setLog]         = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,7 +216,7 @@ export function TqqqManager() {
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-gray-400 font-mono">{e.date}</span>
                 <span className="text-amber-400 text-xs">{e.tranche}차</span>
-                <span className="text-white font-bold">{(e.amountKrw / 10_000).toFixed(0)}만원</span>
+                <span className="text-white font-bold">{isMasked() ? MASK : (e.amountKrw / 10_000).toFixed(0) + "만원"}</span>
                 {e.note && <span className="text-gray-500">{e.note}</span>}
               </div>
               <button

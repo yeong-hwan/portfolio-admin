@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import type { Position } from "../types";
 import type { SectorConfig } from "../hooks/usePortfolio";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 function fmt(n: number | undefined | null): string {
+  if (isMasked()) return MASK;
   if (n == null || isNaN(n)) return "0";
   return n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 }
@@ -42,6 +44,7 @@ interface SectorData {
 }
 
 export function SectorView({ positions, sectorConfig, cashKrw }: Props) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const { sectors, unmapped } = useMemo(() => {
     const posMap = new Map(positions.map((p) => [p.symbol, p]));
     const mappedSymbols = new Set<string>();

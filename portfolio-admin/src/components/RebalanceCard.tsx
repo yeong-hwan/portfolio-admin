@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import type { Position } from "../types";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface Bucket {
   name: string;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 function fmtMan(n: number): string {
+  if (isMasked()) return MASK;
   const man = Math.round(n / 10000);
   return (man < 0 ? "-" : "") + Math.abs(man).toLocaleString("ko-KR") + "만";
 }
@@ -37,6 +39,7 @@ function Bullets({ items }: { items: string[] }) {
 }
 
 export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset }: Props) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const [config, setConfig] = useState<RebalanceConfig | null>(null);
   const [monthlySaving, setMonthlySaving] = useState(4_000_000);
   const [editing, setEditing] = useState(false);

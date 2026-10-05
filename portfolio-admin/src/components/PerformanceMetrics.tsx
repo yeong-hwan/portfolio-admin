@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries, ColorType } from "lightweight-charts";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface PortfolioStats {
   totalReturn: number;
@@ -53,6 +54,7 @@ function pctPoint(v: number, digits = 1) {
 }
 
 function fmtMan(v: number) {
+  if (isMasked()) return MASK;
   const man = Math.round(v / 10000);
   return (man >= 0 ? "" : "-") + Math.abs(man).toLocaleString("ko-KR") + "만";
 }
@@ -84,6 +86,7 @@ function StatCard({
 }
 
 export function PerformanceMetrics() {
+  const masked = useMasked();
   const [data, setData] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +160,7 @@ export function PerformanceMetrics() {
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, [data]);
+  }, [data, masked]);
 
   const p = data?.portfolio;
   const b = data?.benchmark;

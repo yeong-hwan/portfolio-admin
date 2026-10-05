@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import { isMasked, useMasked, MASK } from "../lib/privacy";
 
 interface Cashflow {
   firstOrderDate: string;
@@ -23,10 +24,12 @@ interface Cashflow {
 }
 
 function fmt(n: number): string {
+  if (isMasked()) return MASK;
   return Math.round(n).toLocaleString("ko-KR");
 }
 
 function fmtMan(n: number): string {
+  if (isMasked()) return MASK;
   return Math.round(n / 10000).toLocaleString("ko-KR") + "만";
 }
 
@@ -35,6 +38,7 @@ interface Props {
 }
 
 export const CashflowCard = memo(function CashflowCard({ totalAsset }: Props) {
+  useMasked(); // 마스킹 토글 시 리렌더 구독
   const [data, setData] = useState<Cashflow | null>(null);
   const [error, setError] = useState(false);
 
@@ -101,7 +105,7 @@ export const CashflowCard = memo(function CashflowCard({ totalAsset }: Props) {
               />
               <YAxis
                 tick={{ fill: "#6b7280", fontSize: 10 }}
-                tickFormatter={(v: number) => Math.round(v / 10000).toLocaleString() + "만"}
+                tickFormatter={(v: number) => (isMasked() ? MASK : Math.round(v / 10000).toLocaleString() + "만")}
                 width={48}
                 axisLine={false}
                 tickLine={false}
