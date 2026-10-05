@@ -31,7 +31,7 @@ export const ReturnDecomposition = memo(function ReturnDecomposition() {
 
   if (!monthly) {
     return (
-      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
         <h2 className="text-base font-semibold text-white mb-4">수익 분해: 주가 vs 환율</h2>
         <p className="text-xs text-gray-500 py-8 text-center">로딩 중...</p>
       </div>
@@ -51,7 +51,7 @@ export const ReturnDecomposition = memo(function ReturnDecomposition() {
   const pctSigned = (v: number) => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%";
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col h-full">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-base font-semibold text-white">수익 분해: 주가 vs 환율</h2>
         <span className="text-[10px] text-gray-600">원화수익 = 주가 × 환율</span>

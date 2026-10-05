@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  /* 34" 울트라와이드 대응: 3xl = 모니터 2/3 창, 4xl = 전체화면 */
+  --breakpoint-3xl: 2200px;
+  --breakpoint-4xl: 2800px;
+}
+
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -28,4 +34,11 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

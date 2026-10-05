@@ -56,7 +56,7 @@ export const DividendCard = memo(function DividendCard() {
   }
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col h-full">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-white">배당 인컴 (추정)</h2>
         <span className="text-[10px] text-gray-600">

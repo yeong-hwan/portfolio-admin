@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePortfolio } from "./hooks/usePortfolio";
 import { useMasked, toggleMasked } from "./lib/privacy";
 import { SummaryCards } from "./components/SummaryCards";
@@ -28,6 +28,7 @@ import { QqqDrawdown } from "./components/QqqDrawdown";
 import { LimitsMonitor } from "./components/LimitsMonitor";
 import { FundamentalsMonitor } from "./components/FundamentalsMonitor";
 import { FcfPowerMap } from "./components/FcfPowerMap";
+import { SidebarSummary } from "./components/SidebarSummary";
 
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
@@ -85,6 +86,19 @@ const TAB_LABEL: Record<Tab, string> = {
   tqqq: 'TQQQ',
 };
 
+// ≥2200px(34" 모니터 2/3 창 이상)에서 메인+사이드바 배치
+function useWideLayout(): boolean {
+  const [wide] = useState(() => window.matchMedia("(min-width: 2200px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 2200px)");
+    // 레이아웃 모드 전환 시 차트·그리드가 꼬이지 않게 전체 새로고침
+    const onChange = () => window.location.reload();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return wide;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('portfolio');
   // 방문한 탭은 마운트를 유지해서 탭 전환 시 재fetch/차트 재생성을 방지
@@ -94,6 +108,7 @@ export default function App() {
     setVisited(prev => (prev.has(t) ? prev : new Set(prev).add(t)));
   };
   const masked = useMasked();
+  const wide = useWideLayout();
   const {
     snapshot,
     exchangeRate,
@@ -121,7 +136,7 @@ export default function App() {
 
       {/* Header */}
       <header className="bg-gray-950 border-b border-gray-800/50">
-        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1600px] 3xl:max-w-[2280px] mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
               Portfolio Admin
@@ -198,7 +213,7 @@ export default function App() {
 
       {/* Error */}
       {error && (
-        <div className="max-w-[1600px] mx-auto px-6 pt-4">
+        <div className="max-w-[1600px] 3xl:max-w-[2280px] mx-auto px-6 pt-4">
           <div className="px-4 py-3 bg-rose-900/30 border border-rose-700/30 rounded-xl text-sm text-rose-400">
             {error}
           </div>
@@ -210,86 +225,116 @@ export default function App() {
       {visited.has('tqqq') && <div hidden={tab !== 'tqqq'}><TqqqManager /></div>}
       <div hidden={tab !== 'portfolio'}>
       {snapshot ? (
-        <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+        <main className="max-w-[1600px] 3xl:max-w-[2280px] mx-auto px-6 py-6 space-y-6">
           {snapshot.stale && (
             <StaleBanner snapshot={snapshot} onRefresh={refresh} />
           )}
-          <SectionHeader no="01" title="자산 현황" />
+          {(() => {
+            // 섹션 정의 — 내부 레이아웃은 맥북 기준 그대로, 와이드에선 섹션 단위로 2컬럼 재배치
+            const s01 = (
+              <div className="space-y-6">
+                <SectionHeader no="01" title="자산 현황" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                  <div className="flex flex-col gap-6">
+                    {!wide && <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />}
+                    {!wide && <GoalCard totalAsset={snapshot.summary.total_asset_amount} />}
+                    <PortfolioCandles />
+                    {!wide && <QqqDrawdown />}
+                  </div>
+                  <PerformanceMetrics />
+                </div>
+              </div>
+            );
+            const s02 = (
+              <div className="space-y-6">
+                <SectionHeader no="02" title="배분 · 리스크 규율" />
+                <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                  {!wide && <LimitsMonitor positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />}
+                  <div className={wide ? "lg:col-span-3" : "lg:col-span-2"}>
+                    <FundamentalsMonitor positions={snapshot.positions} />
+                  </div>
+                </div>
+                <FcfPowerMap positions={snapshot.positions} />
+                <MacroSensitivity />
+              </div>
+            );
+            const s03 = (
+              <div className="space-y-6">
+                <SectionHeader no="03" title="시장 환경" />
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+                  <div className={wide ? "lg:col-span-5" : "lg:col-span-3"}>
+                    <InflationCompass />
+                  </div>
+                  {!wide && (
+                    <div className="lg:col-span-2">
+                      <FxChart compact />
+                    </div>
+                  )}
+                </div>
+                <MarketEnvironment />
+              </div>
+            );
+            const s04 = (
+              <div className="space-y-6">
+                <SectionHeader no="04" title="수익 · 현금흐름" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                  <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
+                  <MonthlyHeatmap />
+                  <ReturnDecomposition />
+                  <DrawdownChart />
+                  <div className="lg:col-span-2">
+                    <DividendCard />
+                  </div>
+                </div>
+              </div>
+            );
+            const s05 = (
+              <div className="space-y-6">
+                <SectionHeader no="05" title="보유 · 세금" />
+                <TaxCard positions={snapshot.positions} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <Heatmap positions={snapshot.positions} cashKrw={cashKrw} />
+                  </div>
+                  <AllocationChart positions={snapshot.positions} cashKrw={cashKrw} />
+                </div>
+                <CollapseSection title="수익률 상관관계">
+                  <CorrelationHeatmap positions={snapshot.positions} embedded />
+                </CollapseSection>
+                <CollapseSection title="오늘 상승/하락">
+                  <TopMovers positions={snapshot.positions} />
+                </CollapseSection>
+                <CollapseSection title="보유종목">
+                  <PositionsTable positions={snapshot.positions} />
+                </CollapseSection>
+              </div>
+            );
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <div className="flex flex-col gap-6">
-              <SummaryCards summary={snapshot.summary} exchangeRate={exchangeRate} />
-              <GoalCard totalAsset={snapshot.summary.total_asset_amount} />
-              <PortfolioCandles />
-              <QqqDrawdown />
-            </div>
-            <PerformanceMetrics />
-          </div>
-
-          <SectionHeader no="02" title="배분 · 리스크 규율" />
-
-          <RebalanceCard positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-            <LimitsMonitor positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
-            <div className="lg:col-span-2">
-              <FundamentalsMonitor positions={snapshot.positions} />
-            </div>
-          </div>
-
-          <FcfPowerMap positions={snapshot.positions} />
-
-          <MacroSensitivity />
-
-          <SectionHeader no="03" title="시장 환경" />
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
-            <div className="lg:col-span-3">
-              <InflationCompass />
-            </div>
-            <div className="lg:col-span-2">
-              <FxChart compact />
-            </div>
-          </div>
-
-          <MarketEnvironment />
-
-          <SectionHeader no="04" title="수익 · 현금흐름" />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <CashflowCard totalAsset={snapshot.summary.total_asset_amount} />
-            <MonthlyHeatmap />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <ReturnDecomposition />
-            <DrawdownChart />
-          </div>
-
-          <DividendCard />
-
-          <SectionHeader no="05" title="보유 · 세금" />
-
-          <TaxCard positions={snapshot.positions} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Heatmap positions={snapshot.positions} cashKrw={cashKrw} />
-            </div>
-            <AllocationChart positions={snapshot.positions} cashKrw={cashKrw} />
-          </div>
-
-          <CollapseSection title="수익률 상관관계">
-            <CorrelationHeatmap positions={snapshot.positions} embedded />
-          </CollapseSection>
-
-          <CollapseSection title="오늘 상승/하락">
-            <TopMovers positions={snapshot.positions} />
-          </CollapseSection>
-
-          <CollapseSection title="보유종목">
-            <PositionsTable positions={snapshot.positions} />
-          </CollapseSection>
+            if (!wide) {
+              return <div className="space-y-12">{s01}{s02}{s03}{s04}{s05}</div>;
+            }
+            // 와이드(≥1880px): 메인(맥북 레이아웃 유지) + 상시 모니터링 사이드바
+            return (
+              <div className="flex gap-6 items-start">
+                <div className="flex-1 min-w-0 max-w-[1680px] space-y-12">{s01}{s02}{s03}{s04}{s05}</div>
+                <aside className="w-[560px] shrink-0 space-y-6 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto no-scrollbar">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-widest whitespace-nowrap">모니터링</h2>
+                    <div className="flex-1 h-px bg-white/[0.07]" />
+                  </div>
+                  <SidebarSummary summary={snapshot.summary} exchangeRate={exchangeRate} />
+                  <GoalCard totalAsset={snapshot.summary.total_asset_amount} />
+                  <QqqDrawdown />
+                  <LimitsMonitor positions={snapshot.positions} totalAsset={snapshot.summary.total_asset_amount} />
+                  <InflationCompass compact />
+                  <div className="h-[360px]">
+                    <FxChart compact />
+                  </div>
+                </aside>
+              </div>
+            );
+          })()}
         </main>
       ) : (
         !loading && (

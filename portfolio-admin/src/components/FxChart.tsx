@@ -120,7 +120,7 @@ export const FxChart = memo(function FxChart({ compact = false }: { compact?: bo
   const changePositive = change >= 0;
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col h-full">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 flex flex-col h-full overflow-hidden">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <h2 className="text-base font-semibold text-white">USD/KRW 환율</h2>
@@ -171,7 +171,7 @@ export const FxChart = memo(function FxChart({ compact = false }: { compact?: bo
       )}
       {candles && (
         <div className={compact ? "relative flex-1" : "relative"}>
-          <div ref={containerRef} className={compact ? "h-full min-h-[300px]" : "h-[380px]"} />
+          <div ref={containerRef} className={compact ? "h-full min-h-[150px]" : "h-[380px]"} />
           {tooltip && (
             <div className="absolute top-2 left-2 bg-gray-900/90 backdrop-blur border border-gray-700/60 rounded-xl px-3 py-2.5 text-xs pointer-events-none">
               <p className="text-gray-400 mb-1.5 font-medium">{tooltip.date}</p>

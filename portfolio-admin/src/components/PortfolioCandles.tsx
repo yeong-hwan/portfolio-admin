@@ -66,7 +66,7 @@ export function PortfolioCandles() {
 
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
-      height: 420,
+      height: containerRef.current.clientHeight || 420,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#9ca3af",
@@ -110,11 +110,20 @@ export function PortfolioCandles() {
       setTooltip({ date: param.time as string, open: d.open, high: d.high, low: d.low, close: d.close });
     });
 
-    return () => { chartRef.current?.remove(); chartRef.current = null; };
+    const ro = new ResizeObserver(() => {
+      if (containerRef.current) {
+        chart.applyOptions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => { ro.disconnect(); chartRef.current?.remove(); chartRef.current = null; };
   }, [candles, range, masked]);
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">포트폴리오 캔들</h2>
@@ -151,8 +160,8 @@ export function PortfolioCandles() {
         <div className="flex items-center justify-center h-[420px] text-rose-400 text-sm">{error}</div>
       )}
       {!loading && !error && (
-        <div className="relative">
-          <div ref={containerRef} className="h-[420px]" />
+        <div className="relative flex-1 min-h-[420px]">
+          <div ref={containerRef} className="absolute inset-0" />
           {tooltip && (
             <div className="absolute top-2 left-2 bg-gray-900/90 backdrop-blur border border-gray-700/60 rounded-xl px-3 py-2.5 text-xs pointer-events-none">
               <p className="text-gray-400 mb-1.5 font-medium">{tooltip.date}</p>

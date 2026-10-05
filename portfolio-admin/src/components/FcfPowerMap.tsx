@@ -152,7 +152,7 @@ export const FcfPowerMap = memo(function FcfPowerMap({ positions }: { positions:
   }
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden h-full">
       <div className="px-5 pt-4 pb-1 flex items-baseline justify-between flex-wrap gap-x-4 gap-y-1">
         <h2 className="text-base font-semibold text-white">FCF 10년 파워</h2>
         <span className="text-xs text-gray-600">10년 뒤 원금 대비 FCF 수익률 = Y × (1+g)¹⁰</span>

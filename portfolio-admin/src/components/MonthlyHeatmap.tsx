@@ -30,7 +30,7 @@ export const MonthlyHeatmap = memo(function MonthlyHeatmap() {
 
   if (!monthly) {
     return (
-      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+      <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
         <h2 className="text-base font-semibold text-white mb-4">월별 수익률</h2>
         <p className="text-xs text-gray-500 py-8 text-center">로딩 중...</p>
       </div>
@@ -47,7 +47,7 @@ export const MonthlyHeatmap = memo(function MonthlyHeatmap() {
   }
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl p-5 h-full">
       <div className="flex items-baseline justify-between mb-4">
         <h2 className="text-base font-semibold text-white">월별 수익률</h2>
         <span className="text-[10px] text-gray-600">시간가중 · 입금 효과 제거</span>

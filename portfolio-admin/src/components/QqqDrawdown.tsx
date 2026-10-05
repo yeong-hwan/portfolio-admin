@@ -48,7 +48,7 @@ export const QqqDrawdown = memo(function QqqDrawdown() {
 
   return (
     <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl px-5 py-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="shrink-0">
           <div className="flex items-baseline gap-2">
             <h2 className="text-sm font-semibold text-white">QQQ Drawdown</h2>

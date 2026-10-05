@@ -47,7 +47,7 @@ function SignalDot({ on }: { on: boolean }) {
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${on ? "bg-emerald-400" : "bg-gray-600"}`} />;
 }
 
-export const InflationCompass = memo(function InflationCompass() {
+export const InflationCompass = memo(function InflationCompass({ compact = false }: { compact?: boolean }) {
   const [data, setData] = useState<CompassData | null>(null);
   const [error, setError] = useState(false);
 
@@ -75,6 +75,26 @@ export const InflationCompass = memo(function InflationCompass() {
   }
 
   const s = data.signals;
+
+  if (compact) {
+    return (
+      <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl px-5 py-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-white">인플레이션 나침반</h2>
+          <span className="text-[10px] text-gray-600">{data.asOf}</span>
+        </div>
+        <p className="mt-2 text-sm text-gray-300">
+          {data.label} → <span className="font-bold" style={{ color: QUADRANT_COLOR[data.quadrant] }}>{data.position}</span>
+        </p>
+        <div className="mt-2.5 flex items-center gap-4 text-[11px] text-gray-500">
+          <span className="flex items-center gap-1.5"><SignalDot on={s.growthOn} />성장</span>
+          <span className="flex items-center gap-1.5"><SignalDot on={s.t5yieLevelOn} />T5YIE&gt;2%</span>
+          <span className="flex items-center gap-1.5"><SignalDot on={s.breakevenMomentumOn} />기대인플레</span>
+          <span className="flex items-center gap-1.5"><SignalDot on={s.assetMomentumOn} />자산모멘텀</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white/[0.05] border border-white/[0.08] rounded-2xl overflow-hidden h-full">

@@ -154,7 +154,7 @@ export const RebalanceCard = memo(function RebalanceCard({ positions, totalAsset
   const anyBreach = analysis.rows.some((r) => r.status !== "ok");
 
   return (
-    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden">
+    <div className="bg-white/[0.05] backdrop-blur border border-white/[0.08] rounded-2xl overflow-hidden h-full">
       <div className="px-5 pt-4 pb-3 flex items-baseline justify-between">
         <h2 className="text-base font-semibold text-white">레이어 배분</h2>
         <div className="flex items-baseline gap-3">
